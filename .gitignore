@@ -1,0 +1,12 @@
+# Admin credential — salt and scrypt hash for the backend password.
+# Never commit this, least of all to a public repository. Each install
+# creates its own with: node server/set-password.js
+server/data/admin.json
+
+# Atomic-write leftovers from the catalogue store
+server/data/*.tmp
+
+node_modules/
+*.log
+.DS_Store
+Thumbs.db

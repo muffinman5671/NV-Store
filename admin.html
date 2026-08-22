@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NV Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,500..700&family=Archivo:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --bg:#F2EDE3; --bg-2:#FBF8F2; --fg:#17120C; --fg-2:#4C4338; --fg-3:#6B6152;
+  --line:rgba(23,18,12,.15); --line-2:rgba(23,18,12,.07);
+  --ember:#9E5F0F; --on-ember:#FFF8EC; --bad:#8C2F1D; --good:#2A5A42; --r:14px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0A0806; --bg-2:#121009; --fg:#F6F1E7; --fg-2:#B4AA99; --fg-3:#948B7B;
+  --line:rgba(242,217,168,.17); --line-2:rgba(242,217,168,.08);
+  --ember:#E8A13C; --on-ember:#120D06; --bad:#E8836B; --good:#7FB894;
+}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:"Archivo",system-ui,sans-serif;
+  font-weight:300;line-height:1.6;-webkit-font-smoothing:antialiased}
+.mono{font-family:"JetBrains Mono",ui-monospace,Menlo,monospace;font-size:.6875rem;
+  letter-spacing:.18em;text-transform:uppercase}
+.wrap{width:min(1080px,100% - 3rem);margin:0 auto;padding:3rem 0 5rem}
+h1{font-family:"Bodoni Moda",Georgia,serif;font-weight:600;letter-spacing:.2em;
+  font-size:1.4rem;margin:0;padding-left:.2em}
+header{display:flex;align-items:center;gap:1rem;justify-content:space-between;
+  padding-bottom:1.2rem;border-bottom:1px solid var(--line-2);margin-bottom:2.5rem}
+h2{font-family:"Bodoni Moda",Georgia,serif;font-weight:500;font-size:1.7rem;margin:0 0 1.2rem}
+
+button{font:inherit;cursor:pointer;border-radius:999px;border:1px solid var(--line);
+  background:transparent;color:var(--fg);padding:.6rem 1.2rem;font-size:.875rem;
+  transition:border-color .3s,transform .3s}
+button:hover{border-color:var(--ember);transform:translateY(-1px)}
+button.primary{background:var(--ember);border-color:var(--ember);color:var(--on-ember);font-weight:500}
+button.danger:hover{border-color:var(--bad);color:var(--bad)}
+button[disabled]{opacity:.45;cursor:not-allowed;transform:none}
+
+label{display:block;margin-bottom:1rem}
+label span{display:block;color:var(--fg-3);margin-bottom:.35rem;font-family:"JetBrains Mono",monospace;
+  font-size:.6875rem;letter-spacing:.14em;text-transform:uppercase}
+input,textarea,select{width:100%;font:inherit;padding:.6rem .8rem;border-radius:8px;
+  border:1px solid var(--line);background:var(--bg-2);color:var(--fg)}
+textarea{min-height:6.5rem;resize:vertical;line-height:1.55}
+input:focus,textarea:focus,select:focus{outline:2px solid var(--ember);outline-offset:1px}
+
+.card{background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--r);padding:1.6rem}
+.gate{max-width:26rem;margin:14vh auto}
+.msg{margin:1rem 0 0;font-size:.9rem}
+.msg.err{color:var(--bad)}
+.msg.ok{color:var(--good)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 1.2rem}
+@media (max-width:640px){.grid2{grid-template-columns:1fr}}
+
+.item{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:1rem;align-items:center;
+  padding:1rem 0;border-bottom:1px solid var(--line-2)}
+.chip{width:52px;aspect-ratio:16/9;border-radius:6px;background:linear-gradient(150deg,var(--c1),var(--c2));
+  box-shadow:0 0 0 1px var(--line-2)}
+.chip.book{width:34px;aspect-ratio:5/7}
+.item h3{margin:0;font-family:"Bodoni Moda",Georgia,serif;font-weight:500;font-size:1.1rem}
+.item .meta{color:var(--fg-3);font-family:"JetBrains Mono",monospace;font-size:.6875rem;
+  letter-spacing:.12em;text-transform:uppercase;margin-top:.2rem}
+.item .acts{display:flex;gap:.5rem}
+.item .acts button{padding:.4rem .9rem;font-size:.8rem}
+.empty{color:var(--fg-3);padding:2rem 0}
+.section{margin-bottom:3rem}
+.bar{display:flex;justify-content:space-between;align-items:baseline;gap:1rem;margin-bottom:.5rem}
+.hint{color:var(--fg-3);font-size:.85rem;margin:.4rem 0 0}
+[hidden]{display:none !important}
+</style>
+</head>
+<body>
+
+<!-- ---------- sign in ---------- -->
+<div class="wrap gate" id="gate">
+  <div class="card">
+    <h2>NV Admin</h2>
+    <p class="hint" style="margin-bottom:1.4rem">Sign in to edit the catalogue.</p>
+    <form id="login-form">
+      <label>
+        <span>Password</span>
+        <input type="password" id="pw" autocomplete="current-password" required>
+      </label>
+      <button class="primary" type="submit" id="login-btn">Sign in</button>
+    </form>
+    <p class="msg" id="login-msg" hidden></p>
+  </div>
+</div>
+
+<!-- ---------- console ---------- -->
+<div class="wrap" id="console" hidden>
+  <header>
+    <h1>NV</h1>
+    <button id="logout">Sign out</button>
+  </header>
+
+  <div class="section">
+    <div class="bar">
+      <h2 id="form-title">Add an item</h2>
+      <button id="cancel-edit" hidden>Cancel edit</button>
+    </div>
+    <div class="card">
+      <form id="item-form">
+        <input type="hidden" id="item-id">
+        <div class="grid2">
+          <label><span>Kind</span>
+            <select id="kind">
+              <option value="book">Book</option>
+              <option value="service">Service</option>
+            </select>
+          </label>
+          <label><span>Code</span><input id="code" required maxlength="40" placeholder="NV / 015"></label>
+          <label><span>Title</span><input id="title" required maxlength="120"></label>
+          <label><span>Price (USD)</span><input id="price" type="number" min="0" step="1" required></label>
+        </div>
+        <label><span>Short line</span><input id="sub" required maxlength="200"></label>
+
+        <div class="grid2 book-only">
+          <label><span>Category</span><input id="cat" maxlength="60" placeholder="Systems"></label>
+          <label><span>Pages</span><input id="pages" type="number" min="0" max="9999"></label>
+        </div>
+
+        <div class="service-only">
+          <div class="grid2">
+            <label><span>Format</span><input id="format" maxlength="60" placeholder="Engagement"></label>
+            <label><span>Timeline</span><input id="timeline" maxlength="60" placeholder="4–6 weeks"></label>
+          </div>
+          <div class="grid2">
+            <label><span>Includes</span><input id="includes" maxlength="200"></label>
+            <label><span>Motif</span>
+              <select id="motif">
+                <option value="m-grid">Grid</option>
+                <option value="m-layers">Layers</option>
+                <option value="m-scan">Scan rings</option>
+                <option value="m-pulse">Cadence</option>
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <div class="grid2">
+          <label><span>Colour one</span><input id="c1" type="color" value="#1E2A23"></label>
+          <label><span>Colour two</span><input id="c2" type="color" value="#0C120E"></label>
+        </div>
+
+        <label><span>Description</span><textarea id="desc" required maxlength="2000"></textarea></label>
+        <button class="primary" type="submit" id="save-btn">Add item</button>
+        <p class="msg" id="form-msg" hidden></p>
+      </form>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Books</h2>
+    <div id="list-books"></div>
+  </div>
+
+  <div class="section">
+    <h2>Services</h2>
+    <div id="list-services"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var gate = document.getElementById("gate");
+  var panel = document.getElementById("console");
+  var items = [];
+  var editing = null;
+
+  function $(id) { return document.getElementById(id); }
+  function msg(node, text, kind) {
+    node.textContent = text;
+    node.className = "msg " + (kind || "");
+    node.hidden = !text;
+  }
+
+  function api(path, opts) {
+    opts = opts || {};
+    var init = { method: opts.method || "GET", headers: {}, credentials: "same-origin" };
+    // Always send JSON on writes. The server rejects writes without this
+    // header as a CSRF defence, so omitting it silently breaks the call.
+    if (init.method === "POST" || init.method === "PUT") {
+      init.headers["Content-Type"] = "application/json";
+      init.body = JSON.stringify(opts.body || {});
+    }
+    return fetch(path, init).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (data) {
+        if (!r.ok) throw new Error(data.error || ("Request failed (" + r.status + ")"));
+        return data;
+      });
+    });
+  }
+
+  /* ---------- sign in ---------- */
+
+  $("login-form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var btn = $("login-btn");
+    btn.disabled = true;
+    msg($("login-msg"), "");
+    api("/api/login", { method: "POST", body: { password: $("pw").value } })
+      .then(function () { $("pw").value = ""; showPanel(); })
+      .catch(function (err) { msg($("login-msg"), err.message, "err"); })
+      .then(function () { btn.disabled = false; });
+  });
+
+  $("logout").addEventListener("click", function () {
+    // Only clear the UI if the session really ended - looking signed out
+    // while the cookie still works would be worse than an error.
+    api("/api/logout", { method: "POST" })
+      .then(function () { panel.hidden = true; gate.hidden = false; msg($("form-msg"), ""); })
+      .catch(function (err) { msg($("form-msg"), "Could not sign out: " + err.message, "err"); });
+  });
+
+  function showPanel() {
+    gate.hidden = true; panel.hidden = false;
+    load();
+  }
+
+  /* ---------- list ---------- */
+
+  function load() {
+    return api("/api/catalogue").then(function (data) {
+      items = data.items || [];
+      draw();
+    }).catch(function (err) {
+      msg($("form-msg"), err.message, "err");
+    });
+  }
+
+  function draw() {
+    [["book", "list-books"], ["service", "list-services"]].forEach(function (pair) {
+      var host = $(pair[1]);
+      host.textContent = "";
+      var subset = items.filter(function (i) { return i.kind === pair[0]; });
+      if (!subset.length) {
+        var p = document.createElement("p");
+        p.className = "empty";
+        p.textContent = "Nothing here yet.";
+        host.appendChild(p);
+        return;
+      }
+      subset.forEach(function (it) { host.appendChild(itemRow(it)); });
+    });
+  }
+
+  function itemRow(it) {
+    var row = document.createElement("div");
+    row.className = "item";
+
+    var chip = document.createElement("div");
+    chip.className = "chip" + (it.kind === "book" ? " book" : "");
+    chip.style.setProperty("--c1", it.c1);
+    chip.style.setProperty("--c2", it.c2);
+
+    var mid = document.createElement("div");
+    var h3 = document.createElement("h3");
+    h3.textContent = it.title;
+    var meta = document.createElement("div");
+    meta.className = "meta";
+    meta.textContent = it.code + " · $" + Number(it.price).toLocaleString("en-US") +
+      (it.kind === "book" ? " · " + it.pages + "pp" : " · " + (it.timeline || ""));
+    mid.appendChild(h3); mid.appendChild(meta);
+
+    var acts = document.createElement("div");
+    acts.className = "acts";
+    var edit = document.createElement("button");
+    edit.type = "button"; edit.textContent = "Edit";
+    edit.addEventListener("click", function () { startEdit(it); });
+    var del = document.createElement("button");
+    del.type = "button"; del.className = "danger"; del.textContent = "Delete";
+    del.addEventListener("click", function () { remove(it); });
+    acts.appendChild(edit); acts.appendChild(del);
+
+    row.appendChild(chip); row.appendChild(mid); row.appendChild(acts);
+    return row;
+  }
+
+  /* ---------- form ---------- */
+
+  function syncKind() {
+    var book = $("kind").value === "book";
+    document.querySelectorAll(".book-only").forEach(function (n) { n.hidden = !book; });
+    document.querySelectorAll(".service-only").forEach(function (n) { n.hidden = book; });
+  }
+  $("kind").addEventListener("change", syncKind);
+  syncKind();
+
+  function startEdit(it) {
+    editing = it.id;
+    $("item-id").value = it.id;
+    $("kind").value = it.kind; syncKind();
+    ["code", "title", "sub", "desc", "c1", "c2"].forEach(function (k) { $(k).value = it[k] || ""; });
+    $("price").value = it.price;
+    $("cat").value = it.cat || "";
+    $("pages").value = it.pages || "";
+    $("format").value = it.format || "";
+    $("timeline").value = it.timeline || "";
+    $("includes").value = it.includes || "";
+    $("motif").value = it.motif || "m-grid";
+    $("form-title").textContent = "Editing " + it.title;
+    $("save-btn").textContent = "Save changes";
+    $("cancel-edit").hidden = false;
+    msg($("form-msg"), "");
+    $("form-title").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function resetForm() {
+    editing = null;
+    $("item-form").reset();
+    $("item-id").value = "";
+    syncKind();
+    $("form-title").textContent = "Add an item";
+    $("save-btn").textContent = "Add item";
+    $("cancel-edit").hidden = true;
+  }
+  $("cancel-edit").addEventListener("click", function () { resetForm(); msg($("form-msg"), ""); });
+
+  $("item-form").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var body = {
+      kind: $("kind").value, code: $("code").value, title: $("title").value,
+      sub: $("sub").value, desc: $("desc").value, price: $("price").value,
+      c1: $("c1").value, c2: $("c2").value
+    };
+    if (body.kind === "book") {
+      body.cat = $("cat").value; body.pages = $("pages").value;
+    } else {
+      body.format = $("format").value; body.timeline = $("timeline").value;
+      body.includes = $("includes").value; body.motif = $("motif").value;
+    }
+    var btn = $("save-btn");
+    btn.disabled = true;
+    var req = editing
+      ? api("/api/items/" + encodeURIComponent(editing), { method: "PUT", body: body })
+      : api("/api/items", { method: "POST", body: body });
+
+    req.then(function () {
+      msg($("form-msg"), editing ? "Saved." : "Added.", "ok");
+      resetForm();
+      return load();
+    }).catch(function (err) {
+      msg($("form-msg"), err.message, "err");
+    }).then(function () { btn.disabled = false; });
+  });
+
+  function remove(it) {
+    if (!window.confirm("Delete “" + it.title + "”? This cannot be undone.")) return;
+    api("/api/items/" + encodeURIComponent(it.id), { method: "DELETE" })
+      .then(function () {
+        if (editing === it.id) resetForm();
+        msg($("form-msg"), "Deleted “" + it.title + "”.", "ok");
+        return load();
+      })
+      .catch(function (err) { msg($("form-msg"), err.message, "err"); });
+  }
+
+  /* ---------- resume an existing session ---------- */
+  api("/api/session")
+    .then(function (d) { if (d.admin) showPanel(); })
+    .catch(function () {
+      msg($("login-msg"), "Backend not reachable. Start it with: node server/server.js", "err");
+    });
+})();
+</script>
+</body>
+</html>

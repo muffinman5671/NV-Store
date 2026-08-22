@@ -1,0 +1,384 @@
+'use strict';
+/**
+ * NV store - minimal admin backend.
+ *
+ * Zero dependencies: everything here is Node's standard library, so there is
+ * no npm install step and nothing to keep patched but Node itself.
+ *
+ *   node server/server.js            # serves the site on http://localhost:8080
+ *   PORT=3000 node server/server.js  # or pick your own port
+ *
+ * Public:  GET /api/catalogue
+ * Admin:   POST /api/login, POST /api/logout, GET /api/session,
+ *          POST /api/items, PUT /api/items/:id, DELETE /api/items/:id
+ */
+
+const http = require('http');
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+
+const ROOT = path.resolve(__dirname, '..');
+const DATA_DIR = path.join(__dirname, 'data');
+const CATALOGUE = path.join(DATA_DIR, 'catalogue.json');
+const ADMIN = path.join(DATA_DIR, 'admin.json');
+const PORT = Number(process.env.PORT) || 8080;
+
+const SESSION_TTL_MS = 1000 * 60 * 60 * 8;   // 8 hours
+const MAX_BODY = 64 * 1024;                   // reject oversized payloads
+const LOGIN_WINDOW_MS = 1000 * 60 * 15;
+const LOGIN_MAX_ATTEMPTS = 8;
+
+/* ------------------------------------------------------------------ store */
+
+function readJSON(file, fallback) {
+  try {
+    return JSON.parse(fs.readFileSync(file, 'utf8'));
+  } catch (err) {
+    if (err.code !== 'ENOENT') console.error('Could not read ' + file + ':', err.message);
+    return fallback;
+  }
+}
+
+// Written to a temp file first, then renamed, so a crash mid-write cannot
+// leave a truncated catalogue behind.
+function writeJSON(file, value) {
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  const tmp = file + '.' + process.pid + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify(value, null, 2));
+  fs.renameSync(tmp, file);
+}
+
+function loadCatalogue() {
+  const data = readJSON(CATALOGUE, { items: [] });
+  return Array.isArray(data.items) ? data : { items: [] };
+}
+
+/* ------------------------------------------------------------- passwords */
+
+function hashPassword(password, saltHex) {
+  const salt = saltHex ? Buffer.from(saltHex, 'hex') : crypto.randomBytes(16);
+  const hash = crypto.scryptSync(password, salt, 64, { N: 16384, r: 8, p: 1 });
+  return { salt: salt.toString('hex'), hash: hash.toString('hex') };
+}
+
+function verifyPassword(password, record) {
+  if (!record || !record.salt || !record.hash) return false;
+  let candidate;
+  try {
+    candidate = hashPassword(password, record.salt).hash;
+  } catch (err) {
+    return false;
+  }
+  const a = Buffer.from(candidate, 'hex');
+  const b = Buffer.from(record.hash, 'hex');
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);   // constant time, no early exit
+}
+
+/* -------------------------------------------------------------- sessions */
+
+const sessions = new Map();
+
+function createSession() {
+  const token = crypto.randomBytes(32).toString('hex');
+  sessions.set(token, { expires: Date.now() + SESSION_TTL_MS });
+  return token;
+}
+
+function validSession(token) {
+  if (!token) return false;
+  const s = sessions.get(token);
+  if (!s) return false;
+  if (s.expires < Date.now()) { sessions.delete(token); return false; }
+  return true;
+}
+
+setInterval(function sweep() {
+  const now = Date.now();
+  for (const [token, s] of sessions) if (s.expires < now) sessions.delete(token);
+}, 1000 * 60 * 30).unref();
+
+function parseCookies(header) {
+  const out = {};
+  if (!header) return out;
+  header.split(';').forEach(function (part) {
+    const i = part.indexOf('=');
+    if (i < 0) return;
+    out[part.slice(0, i).trim()] = decodeURIComponent(part.slice(i + 1).trim());
+  });
+  return out;
+}
+
+function isAdmin(req) {
+  return validSession(parseCookies(req.headers.cookie).nv_session);
+}
+
+/* --------------------------------------------------------- login limiter */
+
+const attempts = new Map();
+
+function loginBlocked(ip) {
+  const rec = attempts.get(ip);
+  if (!rec) return false;
+  if (Date.now() - rec.first > LOGIN_WINDOW_MS) { attempts.delete(ip); return false; }
+  return rec.count >= LOGIN_MAX_ATTEMPTS;
+}
+
+function noteFailure(ip) {
+  const rec = attempts.get(ip);
+  if (!rec || Date.now() - rec.first > LOGIN_WINDOW_MS) {
+    attempts.set(ip, { count: 1, first: Date.now() });
+  } else {
+    rec.count += 1;
+  }
+}
+
+/* ----------------------------------------------------------- validation */
+
+const KINDS = ['book', 'service'];
+const MOTIFS = ['m-grid', 'm-layers', 'm-scan', 'm-pulse'];
+const HEX = /^#[0-9a-fA-F]{6}$/;
+
+function str(v, max) {
+  if (typeof v !== 'string') return null;
+  const t = v.trim();
+  if (!t || t.length > max) return null;
+  return t;
+}
+
+// Returns { item } or { error }. Everything that reaches the catalogue file
+// goes through here, so the admin UI cannot post arbitrary shapes.
+function cleanItem(input, existingId) {
+  if (!input || typeof input !== 'object') return { error: 'Body must be an object.' };
+
+  const kind = KINDS.indexOf(input.kind) >= 0 ? input.kind : null;
+  if (!kind) return { error: 'kind must be "book" or "service".' };
+
+  const code = str(input.code, 40);
+  const title = str(input.title, 120);
+  const sub = str(input.sub, 200);
+  const desc = str(input.desc, 2000);
+  if (!code) return { error: 'code is required.' };
+  if (!title) return { error: 'title is required.' };
+  if (!sub) return { error: 'sub is required.' };
+  if (!desc) return { error: 'desc is required.' };
+
+  const price = Number(input.price);
+  if (!isFinite(price) || price < 0 || price > 1000000) {
+    return { error: 'price must be a number between 0 and 1000000.' };
+  }
+
+  const c1 = HEX.test(input.c1) ? input.c1 : '#1E2A23';
+  const c2 = HEX.test(input.c2) ? input.c2 : '#0C120E';
+
+  const item = {
+    id: existingId || 'itm-' + crypto.randomBytes(6).toString('hex'),
+    kind, code, title, sub, desc,
+    price: Math.round(price * 100) / 100,
+    c1, c2
+  };
+
+  if (kind === 'book') {
+    item.cat = str(input.cat, 60) || 'General';
+    item.pages = String(Math.max(0, Math.min(9999, Number(input.pages) || 0)));
+  } else {
+    item.format = str(input.format, 60) || 'Engagement';
+    item.timeline = str(input.timeline, 60) || 'To be scoped';
+    item.includes = str(input.includes, 200) || '';
+    item.motif = MOTIFS.indexOf(input.motif) >= 0 ? input.motif : 'm-grid';
+  }
+  return { item };
+}
+
+/* ------------------------------------------------------------- responses */
+
+function send(res, status, body, headers) {
+  const payload = Buffer.from(JSON.stringify(body));
+  res.writeHead(status, Object.assign({
+    'Content-Type': 'application/json; charset=utf-8',
+    'Content-Length': payload.length,
+    'Cache-Control': 'no-store',
+    'X-Content-Type-Options': 'nosniff'
+  }, headers || {}));
+  res.end(payload);
+}
+
+function readBody(req) {
+  return new Promise(function (resolve, reject) {
+    let size = 0;
+    const chunks = [];
+    req.on('data', function (c) {
+      size += c.length;
+      if (size > MAX_BODY) { reject(new Error('Payload too large.')); req.destroy(); return; }
+      chunks.push(c);
+    });
+    req.on('end', function () {
+      if (!chunks.length) return resolve({});
+      try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8'))); }
+      catch (err) { reject(new Error('Body is not valid JSON.')); }
+    });
+    req.on('error', reject);
+  });
+}
+
+/* ---------------------------------------------------------- static files */
+
+const TYPES = {
+  '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8',
+  '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
+  '.svg': 'image/svg+xml', '.mp4': 'video/mp4', '.ico': 'image/x-icon'
+};
+
+function serveStatic(req, res, pathname) {
+  const rel = decodeURIComponent(pathname).replace(/^\/+/, '') || 'index.html';
+  const file = path.resolve(ROOT, rel);
+
+  // path traversal guard: the resolved path must stay inside ROOT, and the
+  // server's own data directory is never web-readable
+  if (file !== ROOT && !file.startsWith(ROOT + path.sep)) return send(res, 403, { error: 'Forbidden' });
+  if (file.startsWith(path.join(__dirname, 'data'))) return send(res, 403, { error: 'Forbidden' });
+
+  fs.stat(file, function (err, stat) {
+    if (err || !stat.isFile()) return send(res, 404, { error: 'Not found' });
+    const type = TYPES[path.extname(file).toLowerCase()] || 'application/octet-stream';
+    // Range support keeps video scrubbing working
+    const range = req.headers.range;
+    if (range && /^bytes=\d*-\d*$/.test(range)) {
+      const [s, e] = range.replace('bytes=', '').split('-');
+      const start = s ? parseInt(s, 10) : 0;
+      const end = e ? parseInt(e, 10) : stat.size - 1;
+      if (start >= stat.size || end >= stat.size || start > end) {
+        res.writeHead(416, { 'Content-Range': 'bytes */' + stat.size });
+        return res.end();
+      }
+      res.writeHead(206, {
+        'Content-Type': type, 'Content-Length': end - start + 1,
+        'Content-Range': 'bytes ' + start + '-' + end + '/' + stat.size,
+        'Accept-Ranges': 'bytes'
+      });
+      return fs.createReadStream(file, { start, end }).pipe(res);
+    }
+    res.writeHead(200, {
+      'Content-Type': type, 'Content-Length': stat.size, 'Accept-Ranges': 'bytes'
+    });
+    fs.createReadStream(file).pipe(res);
+  });
+}
+
+/* -------------------------------------------------------------- routing */
+
+const server = http.createServer(function (req, res) {
+  const parsed = new URL(req.url, 'http://' + (req.headers.host || 'localhost'));
+  const pathname = parsed.pathname;
+  const ip = req.socket.remoteAddress || 'unknown';
+
+  if (!pathname.startsWith('/api/')) return serveStatic(req, res, pathname);
+
+  // Browsers send no custom headers on a cross-site form post, so requiring
+  // JSON here blocks the simple-request CSRF shape. SameSite does the rest.
+  const needsJSON = ['POST', 'PUT', 'DELETE'].indexOf(req.method) >= 0;
+  const ct = (req.headers['content-type'] || '').split(';')[0].trim();
+  if (needsJSON && req.method !== 'DELETE' && ct !== 'application/json') {
+    return send(res, 415, { error: 'Content-Type must be application/json.' });
+  }
+
+  (async function route() {
+    // ---- public read
+    if (pathname === '/api/catalogue' && req.method === 'GET') {
+      return send(res, 200, loadCatalogue());
+    }
+
+    // ---- who am I
+    if (pathname === '/api/session' && req.method === 'GET') {
+      return send(res, 200, { admin: isAdmin(req) });
+    }
+
+    // ---- login
+    if (pathname === '/api/login' && req.method === 'POST') {
+      if (loginBlocked(ip)) {
+        return send(res, 429, { error: 'Too many attempts. Try again later.' });
+      }
+      const body = await readBody(req);
+      const admin = readJSON(ADMIN, null);
+      if (!admin) {
+        return send(res, 500, { error: 'No admin password set. Run: node server/set-password.js' });
+      }
+      if (typeof body.password !== 'string' || !verifyPassword(body.password, admin)) {
+        noteFailure(ip);
+        return send(res, 401, { error: 'Incorrect password.' });   // never says which part failed
+      }
+      attempts.delete(ip);
+      const token = createSession();
+      const secure = process.env.NODE_ENV === 'production' ? ' Secure;' : '';
+      return send(res, 200, { admin: true }, {
+        'Set-Cookie': 'nv_session=' + token + '; HttpOnly; SameSite=Strict; Path=/;' +
+                      secure + ' Max-Age=' + Math.floor(SESSION_TTL_MS / 1000)
+      });
+    }
+
+    // ---- logout
+    if (pathname === '/api/logout' && req.method === 'POST') {
+      const token = parseCookies(req.headers.cookie).nv_session;
+      if (token) sessions.delete(token);
+      return send(res, 200, { admin: false }, {
+        'Set-Cookie': 'nv_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0'
+      });
+    }
+
+    // ---- everything below is admin only
+    if (!isAdmin(req)) return send(res, 401, { error: 'Not signed in.' });
+
+    if (pathname === '/api/items' && req.method === 'POST') {
+      const body = await readBody(req);
+      const { item, error } = cleanItem(body);
+      if (error) return send(res, 400, { error });
+      const data = loadCatalogue();
+      if (data.items.some(function (i) { return i.code === item.code; })) {
+        return send(res, 409, { error: 'An item with that code already exists.' });
+      }
+      data.items.push(item);
+      writeJSON(CATALOGUE, data);
+      return send(res, 201, { item });
+    }
+
+    const match = pathname.match(/^\/api\/items\/([A-Za-z0-9_-]{1,64})$/);
+    if (match) {
+      const id = match[1];
+      const data = loadCatalogue();
+      const idx = data.items.findIndex(function (i) { return i.id === id; });
+      if (idx < 0) return send(res, 404, { error: 'No item with that id.' });
+
+      if (req.method === 'PUT') {
+        const body = await readBody(req);
+        const { item, error } = cleanItem(body, id);
+        if (error) return send(res, 400, { error });
+        const clash = data.items.some(function (i, n) { return n !== idx && i.code === item.code; });
+        if (clash) return send(res, 409, { error: 'An item with that code already exists.' });
+        data.items[idx] = item;
+        writeJSON(CATALOGUE, data);
+        return send(res, 200, { item });
+      }
+
+      if (req.method === 'DELETE') {
+        const [removed] = data.items.splice(idx, 1);
+        writeJSON(CATALOGUE, data);
+        return send(res, 200, { removed });
+      }
+    }
+
+    return send(res, 404, { error: 'No such endpoint.' });
+  })().catch(function (err) {
+    send(res, 400, { error: err.message || 'Bad request.' });
+  });
+});
+
+server.listen(PORT, function () {
+  if (!fs.existsSync(ADMIN)) {
+    console.log('\n  No admin password set yet.');
+    console.log('  Run:  node server/set-password.js\n');
+  }
+  console.log('  NV store running at http://localhost:' + PORT);
+  console.log('  Admin panel:        http://localhost:' + PORT + '/admin.html\n');
+});
