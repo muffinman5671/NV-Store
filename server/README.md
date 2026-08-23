@@ -184,3 +184,17 @@ intend to sell.
 Editing an item in the admin panel preserves its `paymentLink`, `stripeProduct`
 and `stripePrice`. Changing an item's **price** does not update its Payment
 Link — regenerate with `--force` after a price change.
+
+### Reconciling missed webhooks
+
+Webhooks are the primary fulfilment path, but events can fail to arrive — a
+webhook outage, or local development where Stripe cannot reach your machine
+at all. `POST /api/orders/sync` (admin only) pulls recent Checkout Sessions
+from Stripe and records any that are paid but missing locally.
+
+It skips sessions already recorded, so running it repeatedly is safe. It is a
+safety net, not a replacement: it does not run on the success redirect, and
+fulfilment still belongs in the webhook.
+
+Order records live in `server/data/orders.json`, which is **not** in version
+control — it holds customer email addresses.

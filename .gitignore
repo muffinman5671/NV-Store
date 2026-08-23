@@ -3,6 +3,10 @@
 # creates its own with: node server/set-password.js
 server/data/admin.json
 
+# Order records — contain customer emails. Runtime data, not source, and
+# this repository is public.
+server/data/orders.json
+
 # Atomic-write leftovers from the catalogue store
 server/data/*.tmp
 

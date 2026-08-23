@@ -175,6 +175,32 @@ async function createSession(cart, origin) {
   return client().checkout.sessions.create(params, { idempotencyKey: 'nv-' + fingerprint });
 }
 
+/* -------------------------------------------------------- reconciliation */
+
+/**
+ * Pulls recent Checkout Sessions from Stripe and records any that are paid
+ * but missing locally. Webhooks stay the primary path — this is the safety
+ * net for events that never arrived: a webhook outage, or development on
+ * localhost, where Stripe cannot reach the machine at all.
+ */
+async function syncOrders(limit) {
+  const list = await client().checkout.sessions.list({
+    limit: Math.min(Math.max(Number(limit) || 20, 1), 100)
+  });
+  const added = [];
+  list.data.forEach(function (session) {
+    if (session.payment_status === 'unpaid') return;
+    if (recordOrder(session)) {
+      added.push({
+        id: session.id,
+        amount: session.amount_total,
+        codes: (session.metadata && session.metadata.codes) || ''
+      });
+    }
+  });
+  return { scanned: list.data.length, added: added };
+}
+
 /* ----------------------------------------------------------- fulfilment */
 
 function recordOrder(session) {
@@ -235,6 +261,6 @@ function verifyEvent(rawBody, signature) {
 }
 
 module.exports = {
-  createSession, buildLineItems, handleEvent, verifyEvent, readJSON, ORDERS,
+  createSession, buildLineItems, handleEvent, verifyEvent, readJSON, ORDERS, syncOrders,
   RECURRING_CODES   // exported so the mix rule can be tested and edited
 };

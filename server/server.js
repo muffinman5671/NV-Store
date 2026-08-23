@@ -344,6 +344,19 @@ const server = http.createServer(function (req, res) {
       }
     }
 
+    // ---- reconcile with Stripe (admin only)
+    if (pathname === "/api/orders/sync" && req.method === "POST") {
+      if (!isAdmin(req)) return send(res, 401, { error: "Not signed in." });
+      const body = await readBody(req);
+      try {
+        const result = await checkout.syncOrders(body.limit);
+        return send(res, 200, result);
+      } catch (err) {
+        console.error("  [stripe] sync failed: " + err.message);
+        return send(res, err.statusCode || 500, { error: "Could not reach Stripe." });
+      }
+    }
+
     // ---- orders (admin only, checked further down as well)
     if (pathname === '/api/orders' && req.method === 'GET') {
       if (!isAdmin(req)) return send(res, 401, { error: 'Not signed in.' });
