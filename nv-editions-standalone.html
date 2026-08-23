@@ -578,6 +578,9 @@ a{color:inherit;text-decoration:none}
   transition:color .3s,border-color .3s}
 .qty .line-rm:hover{color:var(--ember);border-color:transparent;border-bottom-color:var(--ember)}
 
+.line-buy{display:block;margin-top:.45rem;color:var(--ember);text-decoration:none;
+  border-bottom:1px solid transparent;transition:border-color .3s}
+.line-buy:hover{border-bottom-color:var(--ember)}
 .drawer-foot{padding:1.4rem 1.6rem 1.8rem;border-top:1px solid var(--line)}
 .drawer-total{display:flex;align-items:baseline;justify-content:space-between;gap:1rem;margin-bottom:1.1rem}
 .drawer-total .mono{color:var(--fg-3)}
@@ -1018,6 +1021,10 @@ footer{border-top:1px solid var(--line-2);padding:3.5rem 0 2.5rem;color:var(--fg
      markup, so the admin backend has something to change. When the Node
      server is running, /api/catalogue replaces it; with no server (opening
      the file directly, or the published artifact) this built-in copy stands. */
+  // True once /api/catalogue answers. Without a server the cart cannot be
+  // priced or checked out here, so each line falls back to its Payment Link.
+  var HAS_BACKEND = false;
+
   var CATALOGUE = {
   "items": [
     {
@@ -1031,7 +1038,10 @@ footer{border-top:1px solid var(--line-2);padding:3.5rem 0 2.5rem;color:var(--fg
       "price": 34,
       "desc": "A practical account of the systems that keep good work moving when your attention is somewhere else. It runs from first principles down to the small operational details that decide whether a process survives contact with a real week.",
       "c1": "#1E2A23",
-      "c2": "#0C120E"
+      "c2": "#0C120E",
+      "paymentLink": "https://buy.stripe.com/test_00waEQ3qm8YKdUW6xh5gc00",
+      "stripeProduct": "prod_V7tnsC7haFP9gI",
+      "stripePrice": "price_1U7dzT314qYsa67lSXZLUHlt"
     },
     {
       "id": "nv-013",
@@ -1044,7 +1054,10 @@ footer{border-top:1px solid var(--line-2);padding:3.5rem 0 2.5rem;color:var(--fg
       "price": 32,
       "desc": "A field guide to deciding under uncertainty: how to weigh partial evidence, size a bet honestly, and recognise the point where waiting for more information costs more than acting without it.",
       "c1": "#33200F",
-      "c2": "#140C05"
+      "c2": "#140C05",
+      "paymentLink": "https://buy.stripe.com/test_4gMcMYaSO8YK8AC7Bl5gc01",
+      "stripeProduct": "prod_V7tn1md9qColus",
+      "stripePrice": "price_1U7dzU314qYsa67lUPf3lGf0"
     },
     {
       "id": "nv-012",
@@ -1057,7 +1070,10 @@ footer{border-top:1px solid var(--line-2);padding:3.5rem 0 2.5rem;color:var(--fg
       "price": 28,
       "desc": "Twelve essays on the long game â compounding attention, resisting the urge to restart, and letting good work accrue. Short pieces meant to be read one at a time and returned to often.",
       "c1": "#241C2E",
-      "c2": "#0D0A12"
+      "c2": "#0D0A12",
+      "paymentLink": "https://buy.stripe.com/test_00wbIUd0Wa2OcQS7Bl5gc02",
+      "stripeProduct": "prod_V7tnqgRxivCeFs",
+      "stripePrice": "price_1U7dzV314qYsa67lsqRCSTkE"
     },
     {
       "id": "nv-s-01",
@@ -1072,7 +1088,10 @@ footer{border-top:1px solid var(--line-2);padding:3.5rem 0 2.5rem;color:var(--fg
       "desc": "A full gap assessment against the current PCI DSS requirements, followed by scope reduction, evidence collection, and a remediation plan your team can actually work through. It ends with a readiness report you can hand to a QSA without rewriting it first.",
       "motif": "m-grid",
       "c1": "#22301F",
-      "c2": "#0D1410"
+      "c2": "#0D1410",
+      "paymentLink": "https://buy.stripe.com/test_dRm3cobWS0se0467Bl5gc03",
+      "stripeProduct": "prod_V7tn54S4LAv9hR",
+      "stripePrice": "price_1U7dzV314qYsa67l7N5rBJez"
     },
     {
       "id": "nv-s-02",
@@ -1087,7 +1106,10 @@ footer{border-top:1px solid var(--line-2);padding:3.5rem 0 2.5rem;color:var(--fg
       "desc": "Policies, a live risk register, and control mapping against whichever framework you are held to — NIST RMF SP-800, ISO, or HIPAA. Built so the controls stay maintainable after the engagement ends, rather than documented once and left to rot.",
       "motif": "m-layers",
       "c1": "#2A2436",
-      "c2": "#100C16"
+      "c2": "#100C16",
+      "paymentLink": "https://buy.stripe.com/test_aFaeV66Cyb6S7wy08T5gc04",
+      "stripeProduct": "prod_V7tnBEVCpzmkRs",
+      "stripePrice": "price_1U7dzW314qYsa67lryvDFMBB"
     },
     {
       "id": "nv-s-03",
@@ -1102,7 +1124,10 @@ footer{border-top:1px solid var(--line-2);padding:3.5rem 0 2.5rem;color:var(--fg
       "desc": "A configuration review across identity, endpoints, and Active Directory, tested against the way your organisation actually operates. Findings come ranked by exploitability and effort to fix, so the list is a work plan rather than a scanner dump.",
       "motif": "m-scan",
       "c1": "#33240F",
-      "c2": "#150E05"
+      "c2": "#150E05",
+      "paymentLink": "https://buy.stripe.com/test_5kQ4gsgd88YKcQS5td5gc05",
+      "stripeProduct": "prod_V7tng2LBBvUy6K",
+      "stripePrice": "price_1U7dzW314qYsa67lYJ2xulgh"
     }
   ]
 };
@@ -1128,6 +1153,7 @@ footer{border-top:1px solid var(--line-2);padding:3.5rem 0 2.5rem;color:var(--fg
     b.dataset.id = it.id; b.dataset.kind = "book"; b.dataset.code = it.code;
     b.dataset.title = it.title; b.dataset.sub = it.sub; b.dataset.cat = it.cat;
     b.dataset.pages = it.pages; b.dataset.price = it.price; b.dataset.desc = it.desc;
+    if (it.paymentLink) b.dataset.link = it.paymentLink;
 
     var cover = el("div", "cover"), frame = el("div", "frame");
     frame.appendChild(el("div", "cm mono", it.code));
@@ -1154,6 +1180,7 @@ footer{border-top:1px solid var(--line-2);padding:3.5rem 0 2.5rem;color:var(--fg
     r.dataset.code = it.code; r.dataset.title = it.title; r.dataset.sub = it.sub;
     r.dataset.format = it.format; r.dataset.timeline = it.timeline;
     r.dataset.includes = it.includes; r.dataset.price = it.price; r.dataset.desc = it.desc;
+    if (it.paymentLink) r.dataset.link = it.paymentLink;
 
     r.appendChild(el("span", "idx mono tnum", ("0" + n).slice(-2)));
     var art = el("span", "svc-art " + (it.motif || "m-grid"));
@@ -1198,7 +1225,10 @@ footer{border-top:1px solid var(--line-2);padding:3.5rem 0 2.5rem;color:var(--fg
     fetch("/api/catalogue", { headers: { Accept: "application/json" } })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (d) {
-        if (d && Array.isArray(d.items) && d.items.length) renderCatalogue(d, true);
+        if (d && Array.isArray(d.items) && d.items.length) {
+          HAS_BACKEND = true;
+          renderCatalogue(d, true);
+        }
       })
       .catch(function () {});
   }
@@ -1625,6 +1655,7 @@ footer{border-top:1px solid var(--line-2);padding:3.5rem 0 2.5rem;color:var(--fg
       return {
         code: d.code, title: d.title, price: parseFloat(d.price), qty: qty,
         service: d.kind === "service",
+        link: d.link || "",
         c1: el.style.getPropertyValue("--c1"), c2: el.style.getPropertyValue("--c2")
       };
     }
@@ -1656,6 +1687,7 @@ footer{border-top:1px solid var(--line-2);padding:3.5rem 0 2.5rem;color:var(--fg
 
     function renderCart() {
       saveCart();
+      dCheckout.textContent = HAS_BACKEND ? "Checkout" : "Buy items individually";
       var n = units();
       cartN.textContent = n;
       dCount.textContent = n === 0 ? "Empty" : n + (n === 1 ? " item" : " items");
@@ -1718,6 +1750,14 @@ footer{border-top:1px solid var(--line-2);padding:3.5rem 0 2.5rem;color:var(--fg
         var price = document.createElement("div");
         price.className = "line-price";
         price.textContent = money(it.qty * it.price);
+        if (!HAS_BACKEND && it.link) {
+          var buy = document.createElement("a");
+          buy.className = "line-buy mono";
+          buy.href = it.link;
+          buy.rel = "noopener";
+          buy.textContent = "Buy";
+          price.appendChild(buy);
+        }
 
         line.appendChild(art); line.appendChild(main); line.appendChild(price);
         dBody.appendChild(line);
@@ -1742,9 +1782,67 @@ footer{border-top:1px solid var(--line-2);padding:3.5rem 0 2.5rem;color:var(--fg
       if (e.target.closest("[data-dclose]")) closeDrawer();
     });
     dCheckout.addEventListener("click", function () {
-      // no payment backend behind this page - say so rather than fake it
-      dNote.textContent = "Checkout is not connected in this preview.";
+      if (!cartItems.length) return;
+      if (!HAS_BACKEND) {
+        // Static copy: no server to price the cart, so send them to the
+        // Payment Link for each line instead of failing silently.
+        dNote.textContent = cartItems.length === 1
+          ? "Use the Buy link beside the item to pay."
+          : "This preview checks out one item at a time — use the Buy link beside each.";
+        var only = cartItems.length === 1 && cartItems[0].link;
+        if (only) window.open(cartItems[0].link, "_blank", "noopener");
+        return;
+      }
+      dCheckout.disabled = true;
+      dNote.textContent = "Taking you to secure checkout…";
+
+      // Only codes and quantities go up. The server prices every line from
+      // the catalogue, so nothing here can change what is charged.
+      fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({
+          cart: cartItems.map(function (it) { return { code: it.code, qty: it.qty }; })
+        })
+      })
+        .then(function (r) {
+          return r.json().catch(function () { return {}; }).then(function (d) {
+            if (!r.ok) throw new Error(d.error || "Checkout is unavailable right now.");
+            return d;
+          });
+        })
+        .then(function (d) {
+          if (!d.url) throw new Error("Checkout is unavailable right now.");
+          window.location.assign(d.url);
+        })
+        .catch(function (err) {
+          dCheckout.disabled = false;
+          dNote.textContent = err.message === "Failed to fetch"
+            ? "Checkout needs the NV server running."
+            : err.message;
+        });
     });
+
+    // Coming back from Stripe. Fulfilment happens in the webhook, not here -
+    // this only tidies the cart and says what happened.
+    (function checkoutReturn() {
+      var q = new URLSearchParams(location.search);
+      var state = q.get("checkout");
+      if (!state) return;
+      if (state === "success") {
+        cartItems = [];
+        saveCart();
+        renderCart();
+        openDrawer();
+        dNote.textContent = "Thank you — your order is confirmed. A receipt is on its way.";
+      } else if (state === "cancelled") {
+        openDrawer();
+        dNote.textContent = "Checkout cancelled. Your cart is still here.";
+      }
+      history.replaceState({}, "", location.pathname);
+    })();
+
 
     document.addEventListener("keydown", function (e) {
       if (drawer.hidden) return;

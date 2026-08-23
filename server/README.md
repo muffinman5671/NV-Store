@@ -155,3 +155,31 @@ keeps the integration in PCI SAQ A.
 - **No receipt email** beyond Stripe's own. No refund or cancellation flow.
 - **Live mode** needs HTTPS, a Dashboard webhook endpoint (the CLI is for
   development only), and a fresh review of the Go Live checklist.
+
+### Static copies: Payment Links
+
+The published artifact and the standalone HTML have no server to call, so the
+cart cannot be priced or checked out there. Each item instead carries a Stripe
+[Payment Link](https://docs.stripe.com/payment-links.md) — a hosted URL that
+needs no backend.
+
+```bash
+node --env-file=.env server/create-payment-links.js
+node server/sync-page.js
+```
+
+Re-running is safe; items that already have a link are skipped. `--force`
+rebuilds them.
+
+With no backend the cart drawer relabels its button to "Buy items
+individually" and shows a Buy link on each line. The full multi-item checkout
+is unaffected and still runs on the real server.
+
+These links are created in **test mode** and take no real money. The script
+refuses to run against a live key, because the URLs get embedded in a public
+page. Regenerate with `--force` against live keys only when you actually
+intend to sell.
+
+Editing an item in the admin panel preserves its `paymentLink`, `stripeProduct`
+and `stripePrice`. Changing an item's **price** does not update its Payment
+Link — regenerate with `--force` after a price change.

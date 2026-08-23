@@ -11,7 +11,10 @@
       "price": 34,
       "desc": "A practical account of the systems that keep good work moving when your attention is somewhere else. It runs from first principles down to the small operational details that decide whether a process survives contact with a real week.",
       "c1": "#1E2A23",
-      "c2": "#0C120E"
+      "c2": "#0C120E",
+      "paymentLink": "https://buy.stripe.com/test_00waEQ3qm8YKdUW6xh5gc00",
+      "stripeProduct": "prod_V7tnsC7haFP9gI",
+      "stripePrice": "price_1U7dzT314qYsa67lSXZLUHlt"
     },
     {
       "id": "nv-013",
@@ -24,7 +27,10 @@
       "price": 32,
       "desc": "A field guide to deciding under uncertainty: how to weigh partial evidence, size a bet honestly, and recognise the point where waiting for more information costs more than acting without it.",
       "c1": "#33200F",
-      "c2": "#140C05"
+      "c2": "#140C05",
+      "paymentLink": "https://buy.stripe.com/test_4gMcMYaSO8YK8AC7Bl5gc01",
+      "stripeProduct": "prod_V7tn1md9qColus",
+      "stripePrice": "price_1U7dzU314qYsa67lUPf3lGf0"
     },
     {
       "id": "nv-012",
@@ -37,7 +43,10 @@
       "price": 28,
       "desc": "Twelve essays on the long game â compounding attention, resisting the urge to restart, and letting good work accrue. Short pieces meant to be read one at a time and returned to often.",
       "c1": "#241C2E",
-      "c2": "#0D0A12"
+      "c2": "#0D0A12",
+      "paymentLink": "https://buy.stripe.com/test_00wbIUd0Wa2OcQS7Bl5gc02",
+      "stripeProduct": "prod_V7tnqgRxivCeFs",
+      "stripePrice": "price_1U7dzV314qYsa67lsqRCSTkE"
     },
     {
       "id": "nv-s-01",
@@ -52,7 +61,10 @@
       "desc": "A full gap assessment against the current PCI DSS requirements, followed by scope reduction, evidence collection, and a remediation plan your team can actually work through. It ends with a readiness report you can hand to a QSA without rewriting it first.",
       "motif": "m-grid",
       "c1": "#22301F",
-      "c2": "#0D1410"
+      "c2": "#0D1410",
+      "paymentLink": "https://buy.stripe.com/test_dRm3cobWS0se0467Bl5gc03",
+      "stripeProduct": "prod_V7tn54S4LAv9hR",
+      "stripePrice": "price_1U7dzV314qYsa67l7N5rBJez"
     },
     {
       "id": "nv-s-02",
@@ -67,7 +79,10 @@
       "desc": "Policies, a live risk register, and control mapping against whichever framework you are held to — NIST RMF SP-800, ISO, or HIPAA. Built so the controls stay maintainable after the engagement ends, rather than documented once and left to rot.",
       "motif": "m-layers",
       "c1": "#2A2436",
-      "c2": "#100C16"
+      "c2": "#100C16",
+      "paymentLink": "https://buy.stripe.com/test_aFaeV66Cyb6S7wy08T5gc04",
+      "stripeProduct": "prod_V7tnBEVCpzmkRs",
+      "stripePrice": "price_1U7dzW314qYsa67lryvDFMBB"
     },
     {
       "id": "nv-s-03",
@@ -82,7 +97,10 @@
       "desc": "A configuration review across identity, endpoints, and Active Directory, tested against the way your organisation actually operates. Findings come ranked by exploitability and effort to fix, so the list is a work plan rather than a scanner dump.",
       "motif": "m-scan",
       "c1": "#33240F",
-      "c2": "#150E05"
+      "c2": "#150E05",
+      "paymentLink": "https://buy.stripe.com/test_5kQ4gsgd88YKcQS5td5gc05",
+      "stripeProduct": "prod_V7tng2LBBvUy6K",
+      "stripePrice": "price_1U7dzW314qYsa67lYJ2xulgh"
     }
   ]
 }

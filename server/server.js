@@ -414,6 +414,11 @@ const server = http.createServer(function (req, res) {
         const body = await readBody(req);
         const { item, error } = cleanItem(body, id);
         if (error) return send(res, 400, { error });
+        // cleanItem rebuilds the record from scratch, so Stripe references
+        // that the admin form does not carry have to be preserved here.
+        ['paymentLink', 'stripeProduct', 'stripePrice'].forEach(function (k) {
+          if (data.items[idx][k]) item[k] = data.items[idx][k];
+        });
         const clash = data.items.some(function (i, n) { return n !== idx && i.code === item.code; });
         if (clash) return send(res, 409, { error: 'An item with that code already exists.' });
         data.items[idx] = item;
