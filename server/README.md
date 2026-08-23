@@ -158,8 +158,8 @@ keeps the integration in PCI SAQ A.
 
 ### Static copies: Payment Links
 
-The published artifact and the standalone HTML have no server to call, so the
-cart cannot be priced or checked out there. Each item instead carries a Stripe
+The published artifact and the standalone HTML have no server to call, so a
+Checkout Session cannot be created there. Each item instead carries a Stripe
 [Payment Link](https://docs.stripe.com/payment-links.md) — a hosted URL that
 needs no backend.
 
@@ -171,9 +171,10 @@ node server/sync-page.js
 Re-running is safe; items that already have a link are skipped. `--force`
 rebuilds them.
 
-With no backend the cart drawer relabels its button to "Buy items
-individually" and shows a Buy link on each line. The full multi-item checkout
-is unaffected and still runs on the real server.
+Every item has a Buy now button. With the server running it posts to
+`/api/checkout`, which prices the item from the catalogue and returns a
+Checkout Session. With no server it opens that item's Payment Link instead,
+and it also falls back to the link if the request fails.
 
 These links are created in **test mode** and take no real money. The script
 refuses to run against a live key, because the URLs get embedded in a public

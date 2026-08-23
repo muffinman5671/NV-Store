@@ -300,6 +300,25 @@ a{color:inherit;text-decoration:none}
 @media (max-width:760px){.svc-art{width:112px}}
 @media (prefers-reduced-motion:reduce){.svc-art{transition:none}}
 
+/* ===== buy now ===== */
+.book-wrap{display:flex;flex-direction:column}
+.book-wrap .book{flex:1}
+.buy-now{margin-top:1rem;align-self:start;font:inherit;font-size:.8125rem;font-weight:500;
+  padding:.55rem 1.15rem;border-radius:999px;border:1px solid var(--line);
+  background:transparent;color:var(--fg);cursor:pointer;white-space:nowrap;
+  transition:border-color .35s,background .35s,color .35s,transform .35s}
+.buy-now:hover{border-color:var(--ember);background:var(--ember);color:var(--on-ember);
+  transform:translateY(-1px)}
+.buy-now[disabled]{opacity:.5;cursor:progress}
+/* in a service row the button sits in the last column */
+.row .buy-now{margin-top:0;align-self:center;justify-self:end}
+.row-open{display:block;width:100%;text-align:left;background:none;border:0;padding:0;
+  font:inherit;color:inherit;cursor:pointer}
+.row{cursor:default}
+@media (max-width:760px){
+  .row .buy-now{grid-column:2;justify-self:start;margin-top:.6rem}
+}
+
 /* ===== manifesto panel ===== */
 .panel{position:relative;overflow:hidden;background:var(--bg-2);border-block:1px solid var(--line-2)}
 .panel::before{content:"";position:absolute;inset:0;pointer-events:none;
@@ -450,17 +469,6 @@ a{color:inherit;text-decoration:none}
 .close .row-cta{display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap}
 
 
-/* ===== cart chip ===== */
-.cart{display:inline-flex;align-items:center;gap:.55rem;padding:.6rem 1rem;border-radius:999px;
-  border:1px solid var(--line);background:transparent;color:var(--fg);cursor:pointer;
-  transition:border-color .35s,transform .35s}
-.cart:hover{border-color:var(--ember);transform:translateY(-1px)}
-.cart-n{min-width:1.35rem;height:1.35rem;display:grid;place-items:center;border-radius:999px;
-  background:var(--ember);color:var(--on-ember);font-size:.7rem;font-weight:600;
-  transition:transform .4s cubic-bezier(.16,1,.3,1)}
-.cart.bump .cart-n{transform:scale(1.35)}
-@media (max-width:820px){.cart span.mono{display:none}}
-
 /* ===== book preview sheet ===== */
 .sheet{position:fixed;inset:0;z-index:80;display:grid;place-items:center;padding:1.25rem}
 .sheet[hidden]{display:none}
@@ -499,8 +507,7 @@ a{color:inherit;text-decoration:none}
 .sheet-buy{margin-top:1.9rem;padding-top:1.5rem;border-top:1px solid var(--line-2);
   display:flex;align-items:center;gap:1.4rem;flex-wrap:wrap;width:100%}
 .sheet-price .amt{font-family:"Bodoni Moda",Georgia,serif;font-size:2.6rem;font-weight:500;line-height:1}
-.sheet-add{min-width:11rem;justify-content:center}
-.sheet-add.done{background:var(--verd);border-color:var(--verd);color:var(--bg)}
+.sheet-buy-btn{min-width:11rem;justify-content:center}
 .sheet-note{margin:1rem 0 0;color:var(--fg-3)}
 
 @media (max-width:760px){
@@ -533,71 +540,6 @@ a{color:inherit;text-decoration:none}
 .sheet-art[data-kind="service"]{max-width:none}
 .sheet-art[data-kind="service"] .play{display:none}
 
-/* ===== cart drawer ===== */
-.drawer{position:fixed;inset:0;z-index:90}
-.drawer[hidden]{display:none}
-.drawer-scrim{position:absolute;inset:0;background:color-mix(in srgb,var(--bg) 58%,#000);
-  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);animation:scrimIn .35s ease both}
-.drawer-panel{position:absolute;top:0;right:0;height:100%;width:min(430px,100%);
-  background:var(--bg-2);border-left:1px solid var(--line);
-  box-shadow:-40px 0 90px -40px rgba(0,0,0,.6);
-  display:flex;flex-direction:column;animation:drawerIn .5s cubic-bezier(.16,1,.3,1) both}
-@keyframes drawerIn{from{transform:translateX(102%)}to{transform:none}}
-.drawer-panel:focus{outline:none}
-
-.drawer-head{display:flex;align-items:baseline;gap:.9rem;
-  padding:1.6rem 1.6rem 1.2rem;border-bottom:1px solid var(--line-2)}
-.drawer-head h2{margin:0;font-size:1.9rem}
-.drawer-head .mono{color:var(--fg-3)}
-.drawer-x{margin-left:auto;width:2rem;height:2rem;border-radius:999px;border:1px solid var(--line);
-  background:var(--bg);color:var(--fg);font-size:1.2rem;line-height:1;cursor:pointer;
-  align-self:center;transition:border-color .3s,transform .3s}
-.drawer-x:hover{border-color:var(--ember);transform:rotate(90deg)}
-
-.drawer-body{flex:1;overflow-y:auto;overscroll-behavior:contain;padding:.5rem 1.6rem}
-.drawer-empty{padding:3.5rem 0;text-align:center;color:var(--fg-3)}
-.drawer-empty p{margin:0 0 1.4rem}
-
-.line{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:1rem;align-items:start;
-  padding:1.2rem 0;border-bottom:1px solid var(--line-2)}
-.line-art{border-radius:4px;overflow:hidden;width:46px;aspect-ratio:5/7;
-  background:linear-gradient(155deg,var(--c1),var(--c2));
-  box-shadow:0 0 0 1px var(--line-2);position:relative}
-.line-art.is-wide{width:66px;aspect-ratio:16/9;border-radius:5px}
-.line-art::after{content:"";position:absolute;inset:4px;border:1px solid rgba(242,217,168,.3)}
-.line-title{font-family:"Bodoni Moda",Georgia,serif;font-weight:500;font-size:1.1rem;line-height:1.15}
-.line-meta{color:var(--fg-3);margin-top:.3rem}
-.line-price{font-variant-numeric:tabular-nums;font-size:.95rem;white-space:nowrap}
-.qty{display:flex;align-items:center;gap:.5rem;margin-top:.75rem}
-.qty button{width:1.6rem;height:1.6rem;border-radius:999px;border:1px solid var(--line);
-  background:transparent;color:var(--fg);cursor:pointer;line-height:1;font-size:.9rem;
-  display:grid;place-items:center;transition:border-color .3s,color .3s}
-.qty button:hover{border-color:var(--ember);color:var(--ember)}
-.qty .n{min-width:1.4rem;text-align:center;font-variant-numeric:tabular-nums;font-size:.9rem}
-/* .qty button is (0,1,1) - this must out-specify it or Remove inherits
-   the round stepper pill: fixed 1.6rem box, full radius and a border */
-.qty .line-rm{width:auto;height:auto;display:inline;padding:0;margin-left:.5rem;
-  background:none;border:0;border-radius:0;border-bottom:1px solid transparent;cursor:pointer;
-  color:var(--fg-3);font-family:"JetBrains Mono",ui-monospace,Menlo,monospace;
-  font-size:.6875rem;letter-spacing:.14em;text-transform:uppercase;
-  transition:color .3s,border-color .3s}
-.qty .line-rm:hover{color:var(--ember);border-color:transparent;border-bottom-color:var(--ember)}
-
-.line-buy{display:block;margin-top:.45rem;color:var(--ember);text-decoration:none;
-  border-bottom:1px solid transparent;transition:border-color .3s}
-.line-buy:hover{border-bottom-color:var(--ember)}
-.drawer-foot{padding:1.4rem 1.6rem 1.8rem;border-top:1px solid var(--line)}
-.drawer-total{display:flex;align-items:baseline;justify-content:space-between;gap:1rem;margin-bottom:1.1rem}
-.drawer-total .mono{color:var(--fg-3)}
-.drawer-total .amt{font-family:"Bodoni Moda",Georgia,serif;font-size:2.1rem;font-weight:500;line-height:1}
-.drawer-checkout{width:100%;justify-content:center}
-.drawer-checkout[disabled]{opacity:.45;cursor:not-allowed}
-.drawer-note{margin:.9rem 0 0;color:var(--fg-3);text-align:center;text-transform:none;letter-spacing:.08em}
-
-@media (prefers-reduced-motion:reduce){
-  .drawer-panel,.drawer-scrim{animation:none}
-  .drawer-x:hover{transform:none}
-}
 /* ===== footer links that open a panel rather than navigate ===== */
 .foot .linkish{background:none;border:0;padding:0;font:inherit;color:inherit;
   text-align:left;cursor:pointer;transition:color .3s}
@@ -656,6 +598,16 @@ a{color:inherit;text-decoration:none}
 .reader-foot .btn{flex:1;justify-content:center;min-width:9rem}
 @media (prefers-reduced-motion:reduce){.reader-panel,.reader-scrim{animation:none}.reader-x:hover{transform:none}}
 
+/* ===== buy status ===== */
+.buy-toast{position:fixed;left:50%;bottom:1.6rem;translate:-50% 0;z-index:95;
+  max-width:min(30rem,calc(100% - 2rem));padding:.85rem 1.3rem;border-radius:999px;
+  background:var(--bg-2);color:var(--fg);border:1px solid var(--line);
+  box-shadow:0 18px 40px -20px rgba(0,0,0,.55);text-transform:none;letter-spacing:.06em;
+  text-align:center;animation:toastIn .5s cubic-bezier(.16,1,.3,1) both}
+.buy-toast[hidden]{display:none}
+@keyframes toastIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.buy-toast{animation:none}}
+
 /* ===== footer ===== */
 footer{border-top:1px solid var(--line-2);padding:3.5rem 0 2.5rem;color:var(--fg-3)}
 .foot{display:grid;grid-template-columns:minmax(0,1.6fr) repeat(3,minmax(0,1fr));gap:2.5rem}
@@ -674,13 +626,14 @@ footer{border-top:1px solid var(--line-2);padding:3.5rem 0 2.5rem;color:var(--fg
 <!--ARTIFACT-BODY-START-->
 <div class="grain" aria-hidden="true"></div>
 
+<div class="buy-toast mono" id="buy-toast" role="status" hidden></div>
+
 <nav class="nav" id="nav">
   <a class="nav-mark" href="#top">NV</a>
   <div class="nav-links">
     <a href="#library">Library</a>
     <a href="#services">Services</a>
     <button class="btn btn-fill" type="button" id="start-reading">Start reading</button>
-    <button class="cart" type="button" id="cart" aria-label="Cart"><span class="mono">Cart</span><span class="cart-n tnum" id="cart-n">0</span></button>
   </div>
 </nav>
 
@@ -942,35 +895,12 @@ footer{border-top:1px solid var(--line-2);padding:3.5rem 0 2.5rem;color:var(--fg
 
       <div class="sheet-buy">
         <div class="sheet-price"><span class="amt tnum" id="sheet-price"></span></div>
-        <button class="btn btn-fill sheet-add" type="button" id="sheet-add">Add to cart</button>
+        <button class="btn btn-fill sheet-buy-btn" type="button" id="sheet-buy-btn">Buy now</button>
         <button class="btn" type="button" id="sheet-read">Read a sample</button>
       </div>
       <p class="sheet-note mono" id="sheet-note"></p>
     </div>
   </div>
-</div>
-
-<!-- ============ CART DRAWER ============ -->
-<div class="drawer" id="drawer" hidden>
-  <div class="drawer-scrim" data-dclose></div>
-  <aside class="drawer-panel" role="dialog" aria-modal="true" aria-labelledby="drawer-title" tabindex="-1">
-    <header class="drawer-head">
-      <h2 class="display" id="drawer-title">Cart</h2>
-      <span class="mono" id="drawer-count">Empty</span>
-      <button class="drawer-x" type="button" data-dclose aria-label="Close cart">&times;</button>
-    </header>
-
-    <div class="drawer-body" id="drawer-body"></div>
-
-    <footer class="drawer-foot">
-      <div class="drawer-total">
-        <span class="mono">Subtotal</span>
-        <span class="amt tnum" id="drawer-total">$0</span>
-      </div>
-      <button class="btn btn-fill drawer-checkout" type="button" id="drawer-checkout">Checkout</button>
-      <p class="drawer-note mono" id="drawer-note">Taxes and shipping calculated at checkout</p>
-    </footer>
-  </aside>
 </div>
 <!-- ============ INFO PANEL ============ -->
 <div class="info" id="info" hidden>
@@ -1001,7 +931,7 @@ footer{border-top:1px solid var(--line-2);padding:3.5rem 0 2.5rem;color:var(--fg
     </div>
 
     <footer class="reader-foot">
-      <button class="btn btn-fill" type="button" id="reader-add">Add to cart</button>
+      <button class="btn btn-fill" type="button" id="reader-buy">Buy now</button>
       <button class="btn" type="button" data-rclose>Close</button>
     </footer>
   </div>
@@ -1077,7 +1007,7 @@ footer{border-top:1px solid var(--line-2);padding:3.5rem 0 2.5rem;color:var(--fg
       "cat": "Essays",
       "pages": "168",
       "price": 28,
-      "desc": "Twelve essays on the long game â compounding attention, resisting the urge to restart, and letting good work accrue. Short pieces meant to be read one at a time and returned to often.",
+      "desc": "Twelve essays on the long game — compounding attention, resisting the urge to restart, and letting good work accrue. Short pieces meant to be read one at a time and returned to often.",
       "c1": "#241C2E",
       "c2": "#0D0A12",
       "paymentLink": "https://buy.stripe.com/test_00wbIUd0Wa2OcQS7Bl5gc02",
@@ -1143,6 +1073,70 @@ footer{border-top:1px solid var(--line-2);padding:3.5rem 0 2.5rem;color:var(--fg
 
   function money(n) { return "$" + Number(n).toLocaleString("en-US"); }
 
+  // One shared status line, in place of what the cart drawer used to report.
+  function toast(text) {
+    var box = document.getElementById("buy-toast");
+    if (!box) return;
+    box.textContent = text;
+    box.hidden = false;
+    clearTimeout(box._t);
+    box._t = setTimeout(function () { box.hidden = true; }, 7000);
+  }
+
+
+
+  /* ---------- buy ----------
+     With a server, the Checkout Session is built there so the price comes
+     from the catalogue and cannot be tampered with. Without one (the static
+     copy), fall back to the item's pre-made Stripe Payment Link. */
+  var buyPending = false;
+
+  function buyNow(code, link, label) {
+    if (buyPending) return;
+    var el = document.querySelector('[data-code="' + (window.CSS && CSS.escape ? CSS.escape(code) : code) + '"]');
+    var href = link || (el && el.dataset.link) || "";
+
+    if (!HAS_BACKEND) {
+      if (href) { toast("Opening secure checkout…"); window.open(href, "_blank", "noopener"); }
+      else toast("This item cannot be bought from the preview.");
+      return;
+    }
+
+    buyPending = true;
+    if (label) label.disabled = true;
+    toast("Taking you to secure checkout…");
+
+    fetch("/api/checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ cart: [{ code: code, qty: 1 }] })
+    })
+      .then(function (r) {
+        return r.json().catch(function () { return {}; }).then(function (d) {
+          if (!r.ok) throw new Error(d.error || "Checkout is unavailable right now.");
+          return d;
+        });
+      })
+      .then(function (d) {
+        if (!d.url) throw new Error("Checkout is unavailable right now.");
+        window.location.assign(d.url);
+      })
+      .catch(function (err) {
+        buyPending = false;
+        if (label) label.disabled = false;
+        if (href) {
+          toast("Opening secure checkout…");
+          window.open(href, "_blank", "noopener");
+        } else {
+          toast(err.message === "Failed to fetch"
+            ? "Checkout needs the NV server running."
+            : err.message);
+        }
+      });
+  }
+
+
   function el(tag, cls, text) {
     var e = document.createElement(tag);
     if (cls) e.className = cls;
@@ -1154,8 +1148,22 @@ footer{border-top:1px solid var(--line-2);padding:3.5rem 0 2.5rem;color:var(--fg
     return bits[bits.length - 1].trim();
   }
 
+  function buyButton(it) {
+    var b = el("button", "buy-now");
+    b.type = "button";
+    b.textContent = "Buy now — " + money(it.price);
+    b.setAttribute("aria-label", "Buy " + it.title + " for " + money(it.price));
+    b.addEventListener("click", function (e) {
+      e.stopPropagation();
+      buyNow(it.code, it.paymentLink, b);
+    });
+    return b;
+  }
+
+
   function bookEl(it) {
-    var b = el("button", "book rv");
+    var wrap = el("div", "book-wrap rv");
+    var b = el("button", "book");
     b.type = "button";
     b.style.setProperty("--c1", it.c1);
     b.style.setProperty("--c2", it.c2);
@@ -1177,12 +1185,13 @@ footer{border-top:1px solid var(--line-2);padding:3.5rem 0 2.5rem;color:var(--fg
     meta.appendChild(el("span", "mono tnum", money(it.price)));
 
     b.appendChild(cover); b.appendChild(meta);
-    return b;
+    wrap.appendChild(b);
+    wrap.appendChild(buyButton(it));
+    return wrap;
   }
 
   function serviceEl(it, n) {
-    var r = el("button", "row rv");
-    r.type = "button";
+    var r = el("div", "row rv");
     r.style.setProperty("--c1", it.c1);
     r.style.setProperty("--c2", it.c2);
     r.dataset.id = it.id; r.dataset.kind = "service"; r.dataset.motif = it.motif || "m-grid";
@@ -1197,7 +1206,8 @@ footer{border-top:1px solid var(--line-2);padding:3.5rem 0 2.5rem;color:var(--fg
     art.appendChild(el("i", "mono", shortCode(it.code)));
     r.appendChild(art);
 
-    var mid = el("span");
+    var mid = el("button", "row-open");
+    mid.type = "button";
     mid.appendChild(el("h3", null, it.title));
     mid.appendChild(el("span", "sub", it.sub));
     r.appendChild(mid);
@@ -1205,7 +1215,7 @@ footer{border-top:1px solid var(--line-2);padding:3.5rem 0 2.5rem;color:var(--fg
     var spec = el("span", "spec mono tnum", it.format + " \u00B7 " + it.timeline);
     spec.appendChild(el("b", null, money(it.price)));
     r.appendChild(spec);
-    r.appendChild(el("span", "arw mono", "\u2192"));
+    r.appendChild(buyButton(it));
     return r;
   }
 
@@ -1403,12 +1413,12 @@ footer{border-top:1px solid var(--line-2);padding:3.5rem 0 2.5rem;color:var(--fg
   var sheet = document.getElementById("sheet");
   if (sheet) {
     var panel   = sheet.querySelector(".sheet-panel");
-    var addBtn  = document.getElementById("sheet-add");
-    var cartBtn = document.getElementById("cart");
-    var cartN   = document.getElementById("cart-n");
+    var buyBtn  = document.getElementById("sheet-buy-btn");
+    buyBtn.addEventListener("click", function () {
+      if (activeBook) buyNow(activeBook.code, activeBook.link, buyBtn);
+    });
     var opener  = null;
     var activeBook = null;
-    var cartItems = [];
     var addTimer = null;
 
     function setText(id, v) { document.getElementById(id).textContent = v; }
@@ -1453,8 +1463,7 @@ footer{border-top:1px solid var(--line-2);padding:3.5rem 0 2.5rem;color:var(--fg
       setText("sheet-title", d.title);
       setText("sheet-desc", d.desc);
       setText("sheet-price", money(d.price));
-      addBtn.classList.remove("done");
-      addBtn.textContent = "Add to cart";
+      buyBtn.textContent = "Buy now \u2014 " + money(d.price);
     }
 
     function openSheet(book) {
@@ -1477,6 +1486,7 @@ footer{border-top:1px solid var(--line-2);padding:3.5rem 0 2.5rem;color:var(--fg
 
     // delegated, because the catalogue can be re-rendered under us
     document.addEventListener("click", function (e) {
+      if (e.target.closest(".buy-now")) return;   // buying is not previewing
       var hit = e.target.closest(".book, .row[data-kind]");
       if (hit) openSheet(hit);
     });
@@ -1497,49 +1507,15 @@ footer{border-top:1px solid var(--line-2);padding:3.5rem 0 2.5rem;color:var(--fg
       else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     });
 
-    /* ---------- cart state ---------- */
-    var drawer     = document.getElementById("drawer");
-    var dPanel     = drawer.querySelector(".drawer-panel");
-    var dBody      = document.getElementById("drawer-body");
-    var dCount     = document.getElementById("drawer-count");
-    var dTotal     = document.getElementById("drawer-total");
-    var dCheckout  = document.getElementById("drawer-checkout");
-    var dNote      = document.getElementById("drawer-note");
-    var dOpener    = null;
-
-    function units() {
-      return cartItems.reduce(function (n, it) { return n + it.qty; }, 0);
-    }
-    function subtotal() {
-      return cartItems.reduce(function (n, it) { return n + it.qty * it.price; }, 0);
-    }
-
-    function addItem(d, el) {
-      var found = null;
-      cartItems.forEach(function (it) { if (it.code === d.code) found = it; });
-      if (found) { found.qty += 1; return; }
-      cartItems.push(itemFrom(el, 1));
-    }
-
-    function changeQty(code, delta) {
-      for (var i = 0; i < cartItems.length; i++) {
-        if (cartItems[i].code !== code) continue;
-        cartItems[i].qty += delta;
-        if (cartItems[i].qty < 1) cartItems.splice(i, 1);
-        break;
-      }
-      renderCart();
-    }
-    function removeItem(code) {
-      cartItems = cartItems.filter(function (it) { return it.code !== code; });
-      renderCart();
-    }
-
     /* ---------- sample reader ---------- */
     var reader   = document.getElementById("reader");
     var rPanel   = reader.querySelector(".reader-panel");
     var rScroll  = reader.querySelector(".reader-scroll");
-    var rAdd     = document.getElementById("reader-add");
+    var rBuy     = document.getElementById("reader-buy");
+    rBuy.addEventListener("click", function () {
+      var el = productByCode(rCode);
+      if (el) buyNow(rCode, el.dataset.link, rBuy);
+    });
     var sheetRead = document.getElementById("sheet-read");
     var rOpener  = null;
     var rCode    = null;
@@ -1588,7 +1564,7 @@ footer{border-top:1px solid var(--line-2);padding:3.5rem 0 2.5rem;color:var(--fg
         p.textContent = para;
         text.appendChild(p);
       });
-      rAdd.textContent = "Add to cart — " + money(d.price);
+      rBuy.textContent = "Buy now \u2014 " + money(d.price);
       reader.hidden = false;
       rScroll.scrollTop = 0;
       rPanel.focus();
@@ -1617,20 +1593,6 @@ footer{border-top:1px solid var(--line-2);padding:3.5rem 0 2.5rem;color:var(--fg
       openReader(code, null);
     });
 
-    rAdd.addEventListener("click", function () {
-      var el = productByCode(rCode);
-      if (!el) return;
-      addItem(el.dataset, el);
-      renderCart();
-      cartBtn.classList.add("bump");
-      setTimeout(function () { cartBtn.classList.remove("bump"); }, 420);
-      rAdd.textContent = "Added to cart";
-      setTimeout(function () {
-        var d = el.dataset;
-        rAdd.textContent = "Add to cart — " + money(d.price);
-      }, 1600);
-    });
-
     reader.addEventListener("click", function (e) {
       if (e.target.closest("[data-rclose]")) closeReader();
     });
@@ -1644,243 +1606,8 @@ footer{border-top:1px solid var(--line-2);padding:3.5rem 0 2.5rem;color:var(--fg
       if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
       else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     });
-
-    /* ---------- persistence ----------
-       Only the code and quantity are stored. Everything else (price, title,
-       colours) is re-read from the page on load, so a saved cart can never
-       resurrect a stale price if the catalogue changes. */
-    var STORE = "nv-cart-v1";
-
-    function productByCode(code) {
-      var found = null;
-      document.querySelectorAll(".book, .row[data-kind]").forEach(function (el) {
-        if (el.dataset.code === code) found = el;
-      });
-      return found;
-    }
-
-    function itemFrom(el, qty) {
-      var d = el.dataset;
-      return {
-        code: d.code, title: d.title, price: parseFloat(d.price), qty: qty,
-        service: d.kind === "service",
-        link: d.link || "",
-        c1: el.style.getPropertyValue("--c1"), c2: el.style.getPropertyValue("--c2")
-      };
-    }
-
-    function saveCart() {
-      try {
-        localStorage.setItem(STORE, JSON.stringify(cartItems.map(function (it) {
-          return { code: it.code, qty: it.qty };
-        })));
-      } catch (e) { /* storage blocked or full - cart still works in memory */ }
-    }
-
-    function loadCart() {
-      var raw = null;
-      try { raw = localStorage.getItem(STORE); } catch (e) { return; }
-      if (!raw) return;
-      var saved;
-      try { saved = JSON.parse(raw); } catch (e) { return; }
-      if (!Array.isArray(saved)) return;
-      saved.forEach(function (entry) {
-        if (!entry || typeof entry.code !== "string") return;
-        var qty = Math.floor(Number(entry.qty));
-        if (!isFinite(qty) || qty < 1) return;
-        var el = productByCode(entry.code);
-        if (!el) return;                      // title no longer in the catalogue
-        cartItems.push(itemFrom(el, Math.min(qty, 99)));
-      });
-    }
-
-    function renderCart() {
-      saveCart();
-      dCheckout.textContent = HAS_BACKEND ? "Checkout" : "Buy items individually";
-      var n = units();
-      cartN.textContent = n;
-      dCount.textContent = n === 0 ? "Empty" : n + (n === 1 ? " item" : " items");
-      dTotal.textContent = money(subtotal());
-      dCheckout.disabled = n === 0;
-      dBody.textContent = "";
-
-      if (n === 0) {
-        var empty = document.createElement("div");
-        empty.className = "drawer-empty";
-        var p = document.createElement("p");
-        p.textContent = "Nothing here yet.";
-        var b = document.createElement("button");
-        b.className = "btn";
-        b.type = "button";
-        b.textContent = "Browse the library";
-        b.addEventListener("click", function () {
-          closeDrawer();
-          document.getElementById("library").scrollIntoView({ behavior: reduced ? "auto" : "smooth" });
-        });
-        empty.appendChild(p); empty.appendChild(b); dBody.appendChild(empty);
-        return;
-      }
-
-      cartItems.forEach(function (it) {
-        var line = document.createElement("div");
-        line.className = "line";
-
-        var art = document.createElement("div");
-        art.className = "line-art" + (it.service ? " is-wide" : "");
-        art.style.setProperty("--c1", it.c1);
-        art.style.setProperty("--c2", it.c2);
-
-        var main = document.createElement("div");
-        var t = document.createElement("div");
-        t.className = "line-title"; t.textContent = it.title;
-        var m = document.createElement("div");
-        m.className = "line-meta mono";
-        m.textContent = it.code + " · " + (it.service ? "Service" : "Book");
-
-        var qty = document.createElement("div");
-        qty.className = "qty";
-        var dec = document.createElement("button");
-        dec.type = "button"; dec.textContent = "−";
-        dec.setAttribute("aria-label", "Decrease quantity of " + it.title);
-        dec.addEventListener("click", function () { changeQty(it.code, -1); });
-        var num = document.createElement("span");
-        num.className = "n"; num.textContent = it.qty;
-        var inc = document.createElement("button");
-        inc.type = "button"; inc.textContent = "+";
-        inc.setAttribute("aria-label", "Increase quantity of " + it.title);
-        inc.addEventListener("click", function () { changeQty(it.code, 1); });
-        var rm = document.createElement("button");
-        rm.type = "button"; rm.className = "line-rm"; rm.textContent = "Remove";
-        rm.addEventListener("click", function () { removeItem(it.code); });
-        qty.appendChild(dec); qty.appendChild(num); qty.appendChild(inc); qty.appendChild(rm);
-
-        main.appendChild(t); main.appendChild(m); main.appendChild(qty);
-
-        var price = document.createElement("div");
-        price.className = "line-price";
-        price.textContent = money(it.qty * it.price);
-        if (!HAS_BACKEND && it.link) {
-          var buy = document.createElement("a");
-          buy.className = "line-buy mono";
-          buy.href = it.link;
-          buy.rel = "noopener";
-          buy.textContent = "Buy";
-          price.appendChild(buy);
-        }
-
-        line.appendChild(art); line.appendChild(main); line.appendChild(price);
-        dBody.appendChild(line);
-      });
-    }
-
-    function openDrawer() {
-      dOpener = document.activeElement;
-      drawer.hidden = false;
-      dNote.textContent = "Taxes and shipping calculated at checkout";
-      dPanel.focus();
-    }
-    function closeDrawer() {
-      if (drawer.hidden) return;
-      drawer.hidden = true;
-      if (dOpener && dOpener.focus) dOpener.focus();
-      dOpener = null;
-    }
-
-    cartBtn.addEventListener("click", openDrawer);
-    drawer.addEventListener("click", function (e) {
-      if (e.target.closest("[data-dclose]")) closeDrawer();
-    });
-    dCheckout.addEventListener("click", function () {
-      if (!cartItems.length) return;
-      if (!HAS_BACKEND) {
-        // Static copy: no server to price the cart, so send them to the
-        // Payment Link for each line instead of failing silently.
-        dNote.textContent = cartItems.length === 1
-          ? "Use the Buy link beside the item to pay."
-          : "This preview checks out one item at a time — use the Buy link beside each.";
-        var only = cartItems.length === 1 && cartItems[0].link;
-        if (only) window.open(cartItems[0].link, "_blank", "noopener");
-        return;
-      }
-      dCheckout.disabled = true;
-      dNote.textContent = "Taking you to secure checkout…";
-
-      // Only codes and quantities go up. The server prices every line from
-      // the catalogue, so nothing here can change what is charged.
-      fetch("/api/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "same-origin",
-        body: JSON.stringify({
-          cart: cartItems.map(function (it) { return { code: it.code, qty: it.qty }; })
-        })
-      })
-        .then(function (r) {
-          return r.json().catch(function () { return {}; }).then(function (d) {
-            if (!r.ok) throw new Error(d.error || "Checkout is unavailable right now.");
-            return d;
-          });
-        })
-        .then(function (d) {
-          if (!d.url) throw new Error("Checkout is unavailable right now.");
-          window.location.assign(d.url);
-        })
-        .catch(function (err) {
-          dCheckout.disabled = false;
-          dNote.textContent = err.message === "Failed to fetch"
-            ? "Checkout needs the NV server running."
-            : err.message;
-        });
-    });
-
-    // Coming back from Stripe. Fulfilment happens in the webhook, not here -
-    // this only tidies the cart and says what happened.
-    (function checkoutReturn() {
-      var q = new URLSearchParams(location.search);
-      var state = q.get("checkout");
-      if (!state) return;
-      if (state === "success") {
-        cartItems = [];
-        saveCart();
-        renderCart();
-        openDrawer();
-        dNote.textContent = "Thank you — your order is confirmed. A receipt is on its way.";
-      } else if (state === "cancelled") {
-        openDrawer();
-        dNote.textContent = "Checkout cancelled. Your cart is still here.";
-      }
-      history.replaceState({}, "", location.pathname);
-    })();
-
-
-    document.addEventListener("keydown", function (e) {
-      if (drawer.hidden) return;
-      if (e.key === "Escape") { closeDrawer(); return; }
-      if (e.key !== "Tab") return;
-      var f = dPanel.querySelectorAll("button:not([disabled]), [href], input, select, textarea");
-      if (!f.length) return;
-      var first = f[0], last = f[f.length - 1];
-      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
-      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
-    });
-
-    addBtn.addEventListener("click", function () {
-      addItem(activeBook, opener);
-      renderCart();
-      cartBtn.classList.add("bump");
-      setTimeout(function () { cartBtn.classList.remove("bump"); }, 420);
-      addBtn.classList.add("done");
-      addBtn.textContent = "Added — " + activeBook.title;
-      if (addTimer) clearTimeout(addTimer);
-      addTimer = setTimeout(function () {
-        addBtn.classList.remove("done");
-        addBtn.textContent = "Add to cart";
-      }, 1800);
-    });
-
-    loadCart();
-    renderCart();
   }
+
   /* ---------- footer info panel ---------- */
   var info = document.getElementById("info");
   if (info) {
@@ -1968,6 +1695,18 @@ footer{border-top:1px solid var(--line-2);padding:3.5rem 0 2.5rem;color:var(--fg
       else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
     });
   }
+
+  // Coming back from Stripe. Fulfilment happens in the webhook; this only
+  // reports what happened.
+  (function checkoutReturn() {
+    var q = new URLSearchParams(location.search);
+    var state = q.get("checkout");
+    if (!state) return;
+    toast(state === "success"
+      ? "Thank you — your order is confirmed. A receipt is on its way."
+      : "Checkout cancelled. Nothing was charged.");
+    history.replaceState({}, "", location.pathname);
+  })();
 
   /* ---------- smooth anchor jumps ---------- */
   document.querySelectorAll('a[href^="#"]').forEach(function (a) {
