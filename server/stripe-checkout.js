@@ -23,7 +23,12 @@ const MAX_LINES = 20;
 // Items billed on a recurring basis. A Checkout Session is either
 // mode:'payment' or mode:'subscription' — never both — so a cart mixing
 // these with one-off items cannot be a single session.
-const RECURRING_CODES = ['NV / S-04'];
+const RECURRING_CODES = ["NV / S-04"];
+
+// A stable label for this checkout flow, so sessions can be compared in the
+// Dashboard. It identifies the integration, not the request - it must not
+// vary per call, or idempotent retries will conflict.
+const INTEGRATION_ID = "nvstore-qhwzmxkd";
 
 let stripe = null;
 
@@ -135,7 +140,6 @@ async function createSession(cart, origin) {
   if (built.error) { const e = new Error(built.error); e.statusCode = 400; throw e; }
 
   const base = (process.env.PUBLIC_URL || origin || 'http://localhost:8080').replace(/\/+$/, '');
-  const suffix = crypto.randomBytes(4).toString('hex').replace(/[0-9]/g, 'x').padEnd(8, 'a').slice(0, 8);
 
   const params = {
     mode: built.mode,
@@ -149,7 +153,7 @@ async function createSession(cart, origin) {
       codes: built.items.map(function (i) { return i.code; }).join(','),
       source: 'nv-store'
     },
-    integration_identifier: 'nvstore-' + suffix
+    integration_identifier: INTEGRATION_ID
   };
 
   if (needsShipping(built.items)) {
@@ -160,11 +164,13 @@ async function createSession(cart, origin) {
   // registration in the customer's jurisdiction collects nothing while
   // appearing to work. Turn it on only after registering — see server/README.
 
-  // Idempotency: a double-clicked checkout button reuses the same session
-  // rather than creating a second one.
-  const fingerprint = crypto.createHash('sha256')
-    .update(JSON.stringify(cart) + built.mode + base)
-    .digest('hex').slice(0, 32);
+  // Idempotency absorbs a double-clicked button. The key is bucketed to ten
+  // minutes so an identical cart later gets a fresh session rather than
+  // resurrecting an expired one.
+  const bucket = Math.floor(Date.now() / (10 * 60 * 1000));
+  const fingerprint = crypto.createHash("sha256")
+    .update(JSON.stringify(cart) + built.mode + base + bucket)
+    .digest("hex").slice(0, 32);
 
   return client().checkout.sessions.create(params, { idempotencyKey: 'nv-' + fingerprint });
 }
