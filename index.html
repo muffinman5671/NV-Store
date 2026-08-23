@@ -1751,9 +1751,57 @@ footer{border-top:1px solid var(--line-2);padding:3.5rem 0 2.5rem;color:var(--fg
       if (e.target.closest("[data-dclose]")) closeDrawer();
     });
     dCheckout.addEventListener("click", function () {
-      // no payment backend behind this page - say so rather than fake it
-      dNote.textContent = "Checkout is not connected in this preview.";
+      if (!cartItems.length) return;
+      dCheckout.disabled = true;
+      dNote.textContent = "Taking you to secure checkout…";
+
+      // Only codes and quantities go up. The server prices every line from
+      // the catalogue, so nothing here can change what is charged.
+      fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({
+          cart: cartItems.map(function (it) { return { code: it.code, qty: it.qty }; })
+        })
+      })
+        .then(function (r) {
+          return r.json().catch(function () { return {}; }).then(function (d) {
+            if (!r.ok) throw new Error(d.error || "Checkout is unavailable right now.");
+            return d;
+          });
+        })
+        .then(function (d) {
+          if (!d.url) throw new Error("Checkout is unavailable right now.");
+          window.location.assign(d.url);
+        })
+        .catch(function (err) {
+          dCheckout.disabled = false;
+          dNote.textContent = err.message === "Failed to fetch"
+            ? "Checkout needs the NV server running."
+            : err.message;
+        });
     });
+
+    // Coming back from Stripe. Fulfilment happens in the webhook, not here -
+    // this only tidies the cart and says what happened.
+    (function checkoutReturn() {
+      var q = new URLSearchParams(location.search);
+      var state = q.get("checkout");
+      if (!state) return;
+      if (state === "success") {
+        cartItems = [];
+        saveCart();
+        renderCart();
+        openDrawer();
+        dNote.textContent = "Thank you — your order is confirmed. A receipt is on its way.";
+      } else if (state === "cancelled") {
+        openDrawer();
+        dNote.textContent = "Checkout cancelled. Your cart is still here.";
+      }
+      history.replaceState({}, "", location.pathname);
+    })();
+
 
     document.addEventListener("keydown", function (e) {
       if (drawer.hidden) return;

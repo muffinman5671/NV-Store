@@ -10,3 +10,14 @@ node_modules/
 *.log
 .DS_Store
 Thumbs.db
+
+# Secrets — never commit. Stripe keys live here.
+.env
+.env.local
+
+# npm
+package-lock.json.tmp
+
+# Skills installed by `npx skills add` — reinstallable from skills-lock.json
+.agents/
+.claude/

@@ -91,3 +91,67 @@ This is a sound local setup, but it is not yet a public deployment:
 3. **One shared password, no user accounts.** There is no audit trail of who
    changed what.
 4. **No backups.** `server/data/catalogue.json` is the only copy.
+
+## Payments (Stripe)
+
+Stripe-hosted Checkout Sessions. Card details never touch this server, which
+keeps the integration in PCI SAQ A.
+
+### Setup
+
+1. Copy `.env.example` to `.env` and fill in your keys. `.env` is gitignored.
+   Prefer a **restricted key** (`rk_test_…`) over a secret key, scoped to:
+   Checkout Sessions write, Products/Prices read, Webhook Endpoints read.
+2. Start the server: `npm start`
+3. For webhooks in development, run the Stripe CLI in a second terminal:
+
+   ```bash
+   stripe listen --forward-to localhost:8080/api/stripe-webhook
+   ```
+
+   It prints a `whsec_…` signing secret — put that in `.env` as
+   `STRIPE_WEBHOOK_SECRET` and restart the server.
+
+4. Pay with test card `4242 4242 4242 4242`, any future expiry and CVC.
+
+### Endpoints
+
+| Method | Path                   | Access | Purpose                        |
+|--------|------------------------|--------|--------------------------------|
+| POST   | `/api/checkout`        | public | Create a Checkout Session      |
+| POST   | `/api/stripe-webhook`  | Stripe | Signature-verified fulfilment  |
+| GET    | `/api/orders`          | admin  | Fulfilled orders               |
+
+### Design decisions
+
+- **The client never sends prices.** The browser posts `{code, qty}` only;
+  every amount is looked up from `catalogue.json` server-side. Without this,
+  anyone can edit their cart in devtools and buy a $7,500 engagement for $1.
+- **Fulfilment happens in the webhook**, not on the success page. Customers
+  are not guaranteed to arrive there — an order that only completes on
+  redirect is an order silently dropped. Both `checkout.session.completed`
+  and `checkout.session.async_payment_succeeded` are handled, and only when
+  `payment_status` is not `unpaid`.
+- **Replayed events do not double-fulfil.** Orders are keyed by session id.
+- **`payment_method_types` is never passed**, which enables dynamic payment
+  methods — Stripe picks what converts best per customer, configurable from
+  the Dashboard with no code change.
+- **Idempotency keys** on session creation, so a double-clicked button
+  reuses the session instead of creating a second one.
+- **Mixed carts are refused.** A Checkout Session is `payment` or
+  `subscription`, never both, so a cart holding a monthly item plus one-off
+  items is rejected with a message telling the customer to buy it separately.
+  Recurring items are listed in `RECURRING_CODES` in `stripe-checkout.js`.
+- **Shipping is collected only when the cart contains a book**, since print
+  editions ship and services do not.
+
+### Not done yet
+
+- **Tax is deliberately off.** Enabling `automatic_tax` without an active
+  registration in the customer's jurisdiction collects nothing while looking
+  like it works. Register first, then turn it on.
+- **Orders are a JSON file.** Fine for low volume; move to a database before
+  it matters.
+- **No receipt email** beyond Stripe's own. No refund or cancellation flow.
+- **Live mode** needs HTTPS, a Dashboard webhook endpoint (the CLI is for
+  development only), and a fresh review of the Go Live checklist.

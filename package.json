@@ -1,0 +1,27 @@
+{
+  "name": "nv-store",
+  "version": "1.0.0",
+  "description": "NV store site and admin backend",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node --env-file-if-exists=.env server/server.js",
+    "setup": "node server/set-password.js",
+    "sync": "node server/sync-page.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/muffinman5671/NV-Store.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/muffinman5671/NV-Store/issues"
+  },
+  "homepage": "https://github.com/muffinman5671/NV-Store#readme",
+  "private": "true",
+  "dependencies": {
+    "stripe": "^22.5.0"
+  }
+}

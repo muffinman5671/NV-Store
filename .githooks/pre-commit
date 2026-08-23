@@ -1,0 +1,13 @@
+#!/bin/sh
+# Blocks Stripe keys from entering history. Key exposure in repositories is
+# the leading cause of API key takeovers.
+if git diff --cached -U0 | grep -nE '(^\+.*)(sk|rk)_(live|test)_[A-Za-z0-9]{16,}' >/dev/null 2>&1; then
+  echo ""
+  echo "  BLOCKED: a Stripe API key appears in your staged changes."
+  echo ""
+  git diff --cached -U0 | grep -nE '(^\+.*)(sk|rk)_(live|test)_[A-Za-z0-9]{16,}' \
+    | sed -E 's/((sk|rk)_(live|test)_[A-Za-z0-9]{6})[A-Za-z0-9]+/\1…REDACTED/g' | head -5
+  echo ""
+  echo "  Move it to .env (gitignored). If it was ever committed, roll it."
+  exit 1
+fi

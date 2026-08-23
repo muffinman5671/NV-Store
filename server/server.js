@@ -17,6 +17,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const checkout = require('./stripe-checkout');
 
 const ROOT = path.resolve(__dirname, '..');
 const DATA_DIR = path.join(__dirname, 'data');
@@ -204,6 +205,20 @@ function send(res, status, body, headers) {
   res.end(payload);
 }
 
+function readRaw(req) {
+  return new Promise(function (resolve, reject) {
+    let size = 0;
+    const chunks = [];
+    req.on('data', function (c) {
+      size += c.length;
+      if (size > MAX_BODY) { reject(new Error('Payload too large.')); req.destroy(); return; }
+      chunks.push(c);
+    });
+    req.on('end', function () { resolve(Buffer.concat(chunks)); });
+    req.on('error', reject);
+  });
+}
+
 function readBody(req) {
   return new Promise(function (resolve, reject) {
     let size = 0;
@@ -276,11 +291,15 @@ const server = http.createServer(function (req, res) {
 
   if (!pathname.startsWith('/api/')) return serveStatic(req, res, pathname);
 
+  // Stripe posts a signed payload; its authenticity comes from the signature,
+  // not from the CSRF-shaped content-type check below.
+  const isWebhook = pathname === '/api/stripe-webhook';
+
   // Browsers send no custom headers on a cross-site form post, so requiring
   // JSON here blocks the simple-request CSRF shape. SameSite does the rest.
   const needsJSON = ['POST', 'PUT', 'DELETE'].indexOf(req.method) >= 0;
   const ct = (req.headers['content-type'] || '').split(';')[0].trim();
-  if (needsJSON && req.method !== 'DELETE' && ct !== 'application/json') {
+  if (needsJSON && !isWebhook && req.method !== 'DELETE' && ct !== 'application/json') {
     return send(res, 415, { error: 'Content-Type must be application/json.' });
   }
 
@@ -288,6 +307,47 @@ const server = http.createServer(function (req, res) {
     // ---- public read
     if (pathname === '/api/catalogue' && req.method === 'GET') {
       return send(res, 200, loadCatalogue());
+    }
+
+    // ---- create a Checkout Session (public: anyone may buy)
+    if (pathname === '/api/checkout' && req.method === 'POST') {
+      const body = await readBody(req);
+      try {
+        const session = await checkout.createSession(body.cart, 'http://' + (req.headers.host || 'localhost:8080'));
+        return send(res, 200, { url: session.url, id: session.id });
+      } catch (err) {
+        // Surface our own validation text; keep Stripe's internals to the log.
+        const status = err.statusCode || 500;
+        if (status >= 500) console.error('  [stripe] ' + err.message);
+        return send(res, status, {
+          error: status >= 500 ? 'Checkout is unavailable right now.' : err.message
+        });
+      }
+    }
+
+    // ---- Stripe webhook: signature-verified, raw body
+    if (pathname === '/api/stripe-webhook' && req.method === 'POST') {
+      const raw = await readRaw(req);
+      let event;
+      try {
+        event = checkout.verifyEvent(raw, req.headers['stripe-signature']);
+      } catch (err) {
+        console.error('  [stripe] rejected webhook: ' + err.message);
+        return send(res, err.statusCode === 503 ? 503 : 400, { error: 'Invalid signature.' });
+      }
+      try {
+        const result = checkout.handleEvent(event);
+        return send(res, 200, { received: true, fulfilled: Boolean(result.fulfilled) });
+      } catch (err) {
+        console.error('  [stripe] handler failed: ' + err.message);
+        return send(res, 500, { error: 'Handler error.' });   // Stripe will retry
+      }
+    }
+
+    // ---- orders (admin only, checked further down as well)
+    if (pathname === '/api/orders' && req.method === 'GET') {
+      if (!isAdmin(req)) return send(res, 401, { error: 'Not signed in.' });
+      return send(res, 200, checkout.readJSON(checkout.ORDERS, { orders: [] }));
     }
 
     // ---- who am I
