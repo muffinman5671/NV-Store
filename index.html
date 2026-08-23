@@ -605,6 +605,8 @@ a{color:inherit;text-decoration:none}
   box-shadow:0 18px 40px -20px rgba(0,0,0,.55);text-transform:none;letter-spacing:.06em;
   text-align:center;animation:toastIn .5s cubic-bezier(.16,1,.3,1) both}
 .buy-toast[hidden]{display:none}
+.buy-toast a{color:var(--ember);text-decoration:underline;text-underline-offset:3px}
+.buy-toast.stay{animation-duration:.7s}
 @keyframes toastIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.buy-toast{animation:none}}
 
@@ -1697,15 +1699,38 @@ footer{border-top:1px solid var(--line-2);padding:3.5rem 0 2.5rem;color:var(--fg
   }
 
   // Coming back from Stripe. Fulfilment happens in the webhook; this only
-  // reports what happened.
+  // reports what happened and points at the receipt.
   (function checkoutReturn() {
     var q = new URLSearchParams(location.search);
     var state = q.get("checkout");
     if (!state) return;
-    toast(state === "success"
-      ? "Thank you — your order is confirmed. A receipt is on its way."
-      : "Checkout cancelled. Nothing was charged.");
+
+    var session = q.get("session_id");
+    // Clear the query before anything else: the session id is the key to the
+    // receipt, and it should not survive in the URL bar or a shared link.
     history.replaceState({}, "", location.pathname);
+
+    if (state !== "success") {
+      toast("Checkout cancelled. Nothing was charged.");
+      return;
+    }
+    if (!session) {
+      toast("Thank you — your order is confirmed.");
+      return;
+    }
+
+    var box = document.getElementById("buy-toast");
+    if (!box) return;
+    clearTimeout(box._t);
+    box.textContent = "Thank you — your order is confirmed. ";
+    var a = document.createElement("a");
+    a.href = "/receipt.html?session_id=" + encodeURIComponent(session);
+    a.textContent = "View your receipt";
+    box.appendChild(a);
+    box.appendChild(document.createTextNode("."));
+    box.classList.add("stay");
+    box.hidden = false;
+    // Left up rather than timed out — this one has something to click.
   })();
 
   /* ---------- smooth anchor jumps ---------- */

@@ -65,6 +65,19 @@ input:focus,textarea:focus,select:focus{outline:2px solid var(--ember);outline-o
 .item .acts{display:flex;gap:.5rem}
 .item .acts button{padding:.4rem .9rem;font-size:.8rem}
 .empty{color:var(--fg-3);padding:2rem 0}
+
+.order{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:1rem;align-items:center;
+  padding:1rem 0;border-bottom:1px solid var(--line-2)}
+.order .no{font-family:"JetBrains Mono",ui-monospace,Menlo,monospace;font-size:.9rem;
+  letter-spacing:.06em;color:var(--ember)}
+.order .who{color:var(--fg-2);font-size:.9rem;margin-top:.15rem;overflow-wrap:anywhere}
+.order .what{color:var(--fg-3);font-family:"JetBrains Mono",monospace;font-size:.6875rem;
+  letter-spacing:.12em;text-transform:uppercase;margin-top:.25rem}
+.order .amt{text-align:right;white-space:nowrap}
+.order .amt strong{display:block;font-family:"Bodoni Moda",Georgia,serif;font-weight:500;
+  font-size:1.15rem;font-variant-numeric:tabular-nums}
+.order .amt a{color:var(--ember);font-size:.8rem;text-decoration:underline;
+  text-underline-offset:2px}
 .section{margin-bottom:3rem}
 .bar{display:flex;justify-content:space-between;align-items:baseline;gap:1rem;margin-bottom:.5rem}
 .hint{color:var(--fg-3);font-size:.85rem;margin:.4rem 0 0}
@@ -161,6 +174,17 @@ input:focus,textarea:focus,select:focus{outline:2px solid var(--ember);outline-o
     <h2>Services</h2>
     <div id="list-services"></div>
   </div>
+
+  <div class="section">
+    <div class="bar">
+      <h2>Receipts</h2>
+      <button id="sync-orders">Reconcile with Stripe</button>
+    </div>
+    <p class="hint">Every paid order, newest first. Reconciling pulls in anything
+      Stripe took that no webhook delivered.</p>
+    <p class="msg" id="orders-msg" hidden></p>
+    <div id="list-orders"></div>
+  </div>
 </div>
 
 <script>
@@ -219,7 +243,102 @@ input:focus,textarea:focus,select:focus{outline:2px solid var(--ember);outline-o
   function showPanel() {
     gate.hidden = true; panel.hidden = false;
     load();
+    loadOrders();
   }
+
+  /* ---------- receipts ---------- */
+
+  function money(cents, currency) {
+    if (cents == null) return "—";
+    try {
+      return new Intl.NumberFormat(undefined, {
+        style: "currency", currency: (currency || "usd").toUpperCase()
+      }).format(cents / 100);
+    } catch (e) {
+      return (cents / 100).toFixed(2);
+    }
+  }
+
+  function drawOrders(orders) {
+    var host = $("list-orders");
+    host.textContent = "";
+    if (!orders.length) {
+      var p = document.createElement("p");
+      p.className = "empty";
+      p.textContent = "No orders yet.";
+      host.appendChild(p);
+      return;
+    }
+
+    // Newest first. Orders are appended as they are fulfilled, so the file is
+    // in chronological order and this only has to reverse it.
+    orders.slice().reverse().forEach(function (o) {
+      var row = document.createElement("div");
+      row.className = "order";
+
+      var left = document.createElement("div");
+      var no = document.createElement("div");
+      no.className = "no";
+      no.textContent = o.receiptNo || o.sessionId.slice(0, 20) + "…";
+      left.appendChild(no);
+
+      var who = document.createElement("div");
+      who.className = "who";
+      who.textContent = [o.name, o.email].filter(Boolean).join(" · ") || "No email on file";
+      left.appendChild(who);
+
+      var what = document.createElement("div");
+      what.className = "what";
+      var items = Array.isArray(o.lines) && o.lines.length
+        ? o.lines.map(function (li) {
+            return (li.quantity > 1 ? li.quantity + "× " : "") + (li.code || li.description);
+          }).join(" · ")
+        : (o.codes || "—");
+      what.textContent = new Date(o.created).toLocaleDateString() + " · " + items +
+        (o.mode === "subscription" ? " · monthly" : "") +
+        (o.shipping ? " · ships" : "");
+      left.appendChild(what);
+      row.appendChild(left);
+
+      var amt = document.createElement("div");
+      amt.className = "amt";
+      var total = document.createElement("strong");
+      total.textContent = money(o.amountTotal, o.currency);
+      amt.appendChild(total);
+      var link = document.createElement("a");
+      link.href = "/receipt.html?session_id=" + encodeURIComponent(o.sessionId);
+      link.target = "_blank";
+      link.rel = "noopener";
+      link.textContent = "Receipt";
+      amt.appendChild(link);
+      row.appendChild(amt);
+
+      host.appendChild(row);
+    });
+  }
+
+  function loadOrders() {
+    return api("/api/orders").then(function (data) {
+      drawOrders(data.orders || []);
+    }).catch(function (err) {
+      msg($("orders-msg"), err.message, "err");
+    });
+  }
+
+  $("sync-orders").addEventListener("click", function () {
+    var btn = this;
+    btn.disabled = true;
+    msg($("orders-msg"), "Asking Stripe…", "");
+    api("/api/orders/sync", { method: "POST", body: { limit: 50 } })
+      .then(function (r) {
+        msg($("orders-msg"), "Scanned " + r.scanned + " session" +
+          (r.scanned === 1 ? "" : "s") + ", added " + r.added.length + ".",
+          r.added.length ? "ok" : "");
+        return loadOrders();
+      })
+      .catch(function (err) { msg($("orders-msg"), err.message, "err"); })
+      .then(function () { btn.disabled = false; });
+  });
 
   /* ---------- list ---------- */
 

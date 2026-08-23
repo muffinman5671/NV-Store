@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "NV store site and admin backend",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node server/test-receipts.js",
     "start": "node --env-file-if-exists=.env server/server.js",
     "setup": "node server/set-password.js",
     "sync": "node server/sync-page.js"

@@ -101,7 +101,10 @@ keeps the integration in PCI SAQ A.
 
 1. Copy `.env.example` to `.env` and fill in your keys. `.env` is gitignored.
    Prefer a **restricted key** (`rk_test_…`) over a secret key, scoped to:
-   Checkout Sessions write, Products/Prices read, Webhook Endpoints read.
+   Checkout Sessions **write**, Products/Prices read, Webhook Endpoints read,
+   plus — for receipts — Charges read, Invoices read, and PaymentIntents
+   **write**. The last one is what lets the server ask Stripe to email its own
+   receipt; without it receipts still render on the site, but no email is sent.
 2. Start the server: `npm start`
 3. For webhooks in development, run the Stripe CLI in a second terminal:
 
@@ -116,11 +119,13 @@ keeps the integration in PCI SAQ A.
 
 ### Endpoints
 
-| Method | Path                   | Access | Purpose                        |
-|--------|------------------------|--------|--------------------------------|
-| POST   | `/api/checkout`        | public | Create a Checkout Session      |
-| POST   | `/api/stripe-webhook`  | Stripe | Signature-verified fulfilment  |
-| GET    | `/api/orders`          | admin  | Fulfilled orders               |
+| Method | Path                   | Access   | Purpose                        |
+|--------|------------------------|----------|--------------------------------|
+| POST   | `/api/checkout`        | public   | Create a Checkout Session      |
+| POST   | `/api/stripe-webhook`  | Stripe   | Signature-verified fulfilment  |
+| GET    | `/api/receipt`         | buyer    | One receipt, by `session_id`   |
+| GET    | `/api/orders`          | admin    | Fulfilled orders               |
+| POST   | `/api/orders/sync`     | admin    | Reconcile against Stripe       |
 
 ### Design decisions
 
@@ -145,6 +150,42 @@ keeps the integration in PCI SAQ A.
 - **Shipping is collected only when the cart contains a book**, since print
   editions ship and services do not.
 
+### Receipts
+
+Every paid order gets a receipt number — `NV-2026-0001`, sequential within the
+calendar year — and a page at `/receipt.html?session_id=…` that renders it in
+the shop's own type and colours, and prints to PDF.
+
+- **Line detail is stored, not joined.** The catalogue is editable from the
+  admin panel, so a receipt that looked its prices up live would silently
+  rewrite what a past customer was charged. Titles, codes, unit amounts and
+  quantities are copied onto the order at the moment of sale and never touched
+  again.
+- **The session id is the credential.** It is unguessable and Stripe hands it
+  only to whoever paid, arriving in the return URL. `index.html` scrubs it from
+  the address bar immediately so it does not survive in history or a shared
+  link. The endpoint validates the id's shape before spending a call on it and
+  is rate-limited per address, so unknown ids cannot be used to hammer Stripe
+  through us.
+- **A receipt can be built without a webhook.** If the order is not on file,
+  `/api/receipt` retrieves the session from Stripe and records it then. The id
+  in the URL only selects *which* session to ask about — Stripe's answer is
+  what decides whether it was paid. This is what makes receipts work on
+  localhost, where no webhook can ever arrive.
+- **Stripe emails its own receipt too.** Checkout does not set `receipt_email`
+  for us, so fulfilment sets it on the succeeded PaymentIntent, which sends
+  one. Payment-mode sessions also enable `invoice_creation`, giving a hosted
+  invoice and a PDF; both URLs are captured and linked from our page.
+  Sending is best effort — a receipt that fails to send never fails an order.
+  **In test mode Stripe only delivers these to your own account address.**
+- **Old orders are backfilled.** Re-seeing a session fills in detail an earlier
+  thin record missed, so orders written before receipts existed gain a number
+  and line prices without being counted as new sales.
+
+Run `npm test` for the receipt suite — 25 cases covering numbering, line
+capture, shipping, idempotent fulfilment, backfill, and the id guard. It uses
+a scratch orders file and never touches `server/data/orders.json`.
+
 ### Not done yet
 
 - **Tax is deliberately off.** Enabling `automatic_tax` without an active
@@ -152,7 +193,12 @@ keeps the integration in PCI SAQ A.
   like it works. Register first, then turn it on.
 - **Orders are a JSON file.** Fine for low volume; move to a database before
   it matters.
-- **No receipt email** beyond Stripe's own. No refund or cancellation flow.
+- **The receipt email is Stripe's, not ours.** It carries Stripe's template and
+  whatever branding is set in the Dashboard, not the shop's. An NV-designed
+  email needs a sending domain and a provider; the receipt *page* is already
+  ours, so the email only has to carry a link to it.
+- **No refund or cancellation flow.** A refund issued in the Dashboard does not
+  change what the receipt page shows.
 - **Live mode** needs HTTPS, a Dashboard webhook endpoint (the CLI is for
   development only), and a fresh review of the Go Live checklist.
 

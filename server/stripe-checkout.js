@@ -14,7 +14,9 @@ const Stripe = require('stripe');
 
 const DATA_DIR = path.join(__dirname, 'data');
 const CATALOGUE = path.join(DATA_DIR, 'catalogue.json');
-const ORDERS = path.join(DATA_DIR, 'orders.json');
+// Overridable so the tests can run against a scratch file. Nothing else sets
+// it — real orders always live in server/data/orders.json.
+const ORDERS = process.env.NV_ORDERS_FILE || path.join(DATA_DIR, 'orders.json');
 
 const CURRENCY = 'usd';
 const MAX_QTY = 20;
@@ -164,6 +166,14 @@ async function createSession(cart, origin) {
   // registration in the customer's jurisdiction collects nothing while
   // appearing to work. Turn it on only after registering — see server/README.
 
+  // A receipt the customer can keep. Stripe finalises an invoice for the
+  // session and hosts both an HTML page and a PDF; both URLs are captured at
+  // fulfilment and linked from our own receipt page. Subscriptions already
+  // raise their own invoices, and Checkout rejects the flag in that mode.
+  if (built.mode === 'payment') {
+    params.invoice_creation = { enabled: true };
+  }
+
   // Idempotency absorbs a double-clicked button. The key is bucketed to ten
   // minutes so an identical cart later gets a fresh session rather than
   // resurrecting an expired one.
@@ -188,38 +198,257 @@ async function syncOrders(limit) {
     limit: Math.min(Math.max(Number(limit) || 20, 1), 100)
   });
   const added = [];
-  list.data.forEach(function (session) {
-    if (session.payment_status === 'unpaid') return;
-    if (recordOrder(session)) {
+  // Sequential, not Promise.all: each pass may retrieve the session to expand
+  // its lines, and orders.json is read-modify-written per record. Overlapping
+  // writes would lose orders and hand out duplicate receipt numbers.
+  for (const session of list.data) {
+    if (session.payment_status === 'unpaid') continue;
+    const record = await fulfil(session);
+    if (record) {
       added.push({
-        id: session.id,
-        amount: session.amount_total,
-        codes: (session.metadata && session.metadata.codes) || ''
+        id: record.sessionId,
+        receiptNo: record.receiptNo,
+        amount: record.amountTotal,
+        codes: record.codes
       });
     }
-  });
+  }
   return { scanned: list.data.length, added: added };
+}
+
+/* -------------------------------------------------------------- receipts */
+
+// Everything the receipt needs that the session object does not carry by
+// default. Four levels is the expansion limit, so this is as deep as it goes.
+const RECEIPT_EXPAND = [
+  'line_items.data.price.product',
+  'payment_intent.latest_charge',
+  'invoice'
+];
+
+const SESSION_ID = /^cs_(test|live)_[A-Za-z0-9]{1,250}$/;
+
+function fetchSession(id) {
+  if (!SESSION_ID.test(String(id || ''))) {
+    const err = new Error('That is not a valid order reference.');
+    err.statusCode = 400;
+    throw err;
+  }
+  return client().checkout.sessions.retrieve(id, { expand: RECEIPT_EXPAND });
+}
+
+/**
+ * Human-facing receipt numbers, sequential within the calendar year:
+ * NV-2026-0001. Derived from the orders already on file rather than a stored
+ * counter, so there is one source of truth and nothing to fall out of step.
+ */
+function receiptNumber(store, when) {
+  const tag = 'NV-' + when.getUTCFullYear() + '-';
+  let max = 0;
+  store.orders.forEach(function (o) {
+    if (typeof o.receiptNo !== 'string' || o.receiptNo.indexOf(tag) !== 0) return;
+    const n = parseInt(o.receiptNo.slice(tag.length), 10);
+    if (isFinite(n) && n > max) max = n;
+  });
+  return tag + String(max + 1).padStart(4, '0');
+}
+
+/**
+ * Line detail as it was at the moment of sale. Stored rather than looked up,
+ * because the catalogue is editable: re-pricing an item must never rewrite
+ * what a past customer was charged.
+ */
+function linesFrom(session) {
+  const data = session.line_items && session.line_items.data;
+  if (!Array.isArray(data) || !data.length) return null;
+  return data.map(function (li) {
+    const price = li.price || {};
+    const product = (price.product && typeof price.product === 'object') ? price.product : {};
+    const meta = product.metadata || {};
+    return {
+      description: li.description || product.name || 'Item',
+      code: meta.code || null,
+      kind: meta.kind || null,
+      quantity: li.quantity == null ? 1 : li.quantity,
+      unitAmount: price.unit_amount == null ? null : price.unit_amount,
+      amountTotal: li.amount_total == null ? null : li.amount_total,
+      recurring: Boolean(price.recurring)
+    };
+  });
+}
+
+// Stripe moved shipping onto collected_information; older versions keep it at
+// the top level. Read both so an API version bump cannot silently drop the
+// address a book has to be posted to.
+function shippingFrom(session) {
+  const s = (session.collected_information && session.collected_information.shipping_details) ||
+            session.shipping_details || null;
+  if (!s) return null;
+  const a = s.address || {};
+  return {
+    name: s.name || null,
+    line1: a.line1 || null,
+    line2: a.line2 || null,
+    city: a.city || null,
+    state: a.state || null,
+    postalCode: a.postal_code || null,
+    country: a.country || null
+  };
+}
+
+// Stripe's own hosted copies, kept alongside ours so support can point at
+// either. Absent until the payment intent and invoice have been expanded.
+function receiptUrls(session) {
+  const out = { stripeReceiptUrl: null, invoiceUrl: null, invoicePdf: null };
+  const pi = session.payment_intent;
+  if (pi && typeof pi === 'object') {
+    const charge = pi.latest_charge;
+    if (charge && typeof charge === 'object' && charge.receipt_url) {
+      out.stripeReceiptUrl = charge.receipt_url;
+    }
+  }
+  const inv = session.invoice;
+  if (inv && typeof inv === 'object') {
+    out.invoiceUrl = inv.hosted_invoice_url || null;
+    out.invoicePdf = inv.invoice_pdf || null;
+  }
+  return out;
+}
+
+/**
+ * Ask Stripe to email its own receipt. Checkout does not set receipt_email
+ * for us; setting it on a succeeded PaymentIntent sends one to that address.
+ * Best effort only — a receipt that fails to send must never fail an order,
+ * and the customer can always read theirs on the site.
+ */
+async function sendStripeReceipt(session) {
+  if (session.mode !== 'payment') return false;   // subscriptions invoice themselves
+  const email = session.customer_details && session.customer_details.email;
+  if (!email) return false;
+  const pi = session.payment_intent;
+  const id = typeof pi === 'string' ? pi : (pi && pi.id);
+  if (!id) return false;
+  if (pi && typeof pi === 'object' && pi.receipt_email === email) return false;
+  await client().paymentIntents.update(id, { receipt_email: email });
+  return true;
 }
 
 /* ----------------------------------------------------------- fulfilment */
 
+function findOrder(store, sessionId) {
+  return store.orders.find(function (o) { return o.sessionId === sessionId; }) || null;
+}
+
+/**
+ * Write the order down. Returns the new record, or null if this session was
+ * already fulfilled — events repeat, and the success page checks in behind
+ * the webhook, so this is the single place that decides what is new.
+ */
 function recordOrder(session) {
   const store = readJSON(ORDERS, { orders: [] });
-  if (store.orders.some(function (o) { return o.sessionId === session.id; })) {
-    return false;                        // already fulfilled; events can repeat
+  const now = new Date();
+  const lines = linesFrom(session);
+  const urls = receiptUrls(session);
+  const existing = findOrder(store, session.id);
+
+  if (existing) {
+    // Not a fresh order, but detail an earlier thin record missed is worth
+    // filling in — that is what gives orders written before receipts existed
+    // a receipt number and line prices.
+    let changed = false;
+    if (lines && !existing.lines) { existing.lines = lines; changed = true; }
+    if (!existing.receiptNo) { existing.receiptNo = receiptNumber(store, now); changed = true; }
+    if (!existing.shipping) {
+      const ship = shippingFrom(session);
+      if (ship) { existing.shipping = ship; changed = true; }
+    }
+    if (existing.amountSubtotal == null && session.amount_subtotal != null) {
+      existing.amountSubtotal = session.amount_subtotal;
+      changed = true;
+    }
+    if (!existing.name && session.customer_details && session.customer_details.name) {
+      existing.name = session.customer_details.name;
+      changed = true;
+    }
+    ['stripeReceiptUrl', 'invoiceUrl', 'invoicePdf'].forEach(function (k) {
+      if (!existing[k] && urls[k]) { existing[k] = urls[k]; changed = true; }
+    });
+    if (changed) writeJSON(ORDERS, store);
+    return null;
   }
-  store.orders.push({
+
+  const record = {
     sessionId: session.id,
+    receiptNo: receiptNumber(store, now),
     mode: session.mode,
+    amountSubtotal: session.amount_subtotal == null ? null : session.amount_subtotal,
     amountTotal: session.amount_total,
     currency: session.currency,
     paymentStatus: session.payment_status,
     email: (session.customer_details && session.customer_details.email) || null,
+    name: (session.customer_details && session.customer_details.name) || null,
     codes: (session.metadata && session.metadata.codes) || '',
+    lines: lines,
+    shipping: shippingFrom(session),
+    stripeReceiptUrl: urls.stripeReceiptUrl,
+    invoiceUrl: urls.invoiceUrl,
+    invoicePdf: urls.invoicePdf,
     created: new Date().toISOString()
-  });
+  };
+  store.orders.push(record);
   writeJSON(ORDERS, store);
-  return true;
+  return record;
+}
+
+/**
+ * Record a paid session with its full line detail, expanding it from Stripe
+ * first if the caller only has the slim copy a webhook carries. Returns the
+ * new record, or null if it was already on file.
+ */
+async function fulfil(session) {
+  const known = findOrder(readJSON(ORDERS, { orders: [] }), session.id);
+  if (known && known.lines) return null;      // nothing to add, so no round trip
+
+  let full = session;
+  if (!session.line_items) {
+    // Webhook payloads never include line_items, so the receipt detail has to
+    // be fetched. If that call fails the order is still recorded from what we
+    // have: a receipt missing its lines beats an order lost.
+    try {
+      full = await fetchSession(session.id);
+    } catch (err) {
+      console.error('  [stripe] could not expand ' + session.id + ': ' + err.message);
+    }
+  }
+
+  const record = recordOrder(full);
+  if (record) {
+    try { await sendStripeReceipt(full); }
+    catch (err) { console.error('  [stripe] receipt email failed: ' + err.message); }
+  }
+  return record;
+}
+
+/**
+ * The receipt for one order. Reads locally first; if the order is not on file
+ * the session is retrieved from Stripe, which is what makes receipts work on
+ * localhost, where no webhook can ever arrive. The id in the URL only selects
+ * which session to ask about — Stripe's answer decides whether it was paid.
+ */
+async function receiptFor(sessionId) {
+  const local = findOrder(readJSON(ORDERS, { orders: [] }), sessionId);
+  if (local && local.lines) return local;
+
+  const session = await fetchSession(sessionId);
+  if (session.payment_status === 'unpaid') {
+    const err = new Error('That order has not been paid.');
+    err.statusCode = 409;
+    throw err;
+  }
+
+  const fresh = await fulfil(session);
+  if (fresh) return fresh;
+  return findOrder(readJSON(ORDERS, { orders: [] }), sessionId);
 }
 
 /**
@@ -227,7 +456,7 @@ function recordOrder(session) {
  * success page: customers are not guaranteed to arrive there, and an order
  * that only completes on redirect is an order silently dropped.
  */
-function handleEvent(event) {
+async function handleEvent(event) {
   switch (event.type) {
     case 'checkout.session.completed':
     case 'checkout.session.async_payment_succeeded': {
@@ -237,9 +466,9 @@ function handleEvent(event) {
         console.log('  [stripe] ' + session.id + ' completed but unpaid — waiting');
         return { fulfilled: false, reason: 'unpaid' };
       }
-      const fresh = recordOrder(session);
-      console.log('  [stripe] ' + (fresh ? 'fulfilled ' : 'already fulfilled ') + session.id);
-      return { fulfilled: fresh };
+      const record = await fulfil(session);
+      console.log('  [stripe] ' + (record ? 'fulfilled ' + record.receiptNo + ' for ' : 'already fulfilled ') + session.id);
+      return { fulfilled: Boolean(record), receiptNo: record ? record.receiptNo : null };
     }
     case 'checkout.session.async_payment_failed':
       console.log('  [stripe] payment failed for ' + event.data.object.id);
@@ -262,5 +491,6 @@ function verifyEvent(rawBody, signature) {
 
 module.exports = {
   createSession, buildLineItems, handleEvent, verifyEvent, readJSON, ORDERS, syncOrders,
+  receiptFor, recordOrder, fulfil, fetchSession, receiptNumber, linesFrom, shippingFrom,
   RECURRING_CODES   // exported so the mix rule can be tested and edited
 };

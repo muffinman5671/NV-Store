@@ -98,6 +98,10 @@ function validSession(token) {
 setInterval(function sweep() {
   const now = Date.now();
   for (const [token, s] of sessions) if (s.expires < now) sessions.delete(token);
+  // The rate-limit maps are keyed by address and would otherwise only ever
+  // grow; expired windows are dead weight.
+  for (const [ip, rec] of attempts) if (now - rec.first > LOGIN_WINDOW_MS) attempts.delete(ip);
+  for (const [ip, rec] of lookups) if (now - rec.first > RECEIPT_WINDOW_MS) lookups.delete(ip);
 }, 1000 * 60 * 30).unref();
 
 function parseCookies(header) {
@@ -133,6 +137,56 @@ function noteFailure(ip) {
   } else {
     rec.count += 1;
   }
+}
+
+/* -------------------------------------------------- receipt lookup limit */
+
+// A receipt is fetched by Checkout Session id — unguessable, and handed only
+// to whoever paid. But an id we have not seen costs a call to Stripe, so the
+// endpoint is capped per address to keep it from being used as an amplifier.
+const RECEIPT_WINDOW_MS = 1000 * 60 * 5;
+const RECEIPT_MAX_LOOKUPS = 30;
+const lookups = new Map();
+
+function receiptBlocked(ip) {
+  const rec = lookups.get(ip);
+  if (!rec) return false;
+  if (Date.now() - rec.first > RECEIPT_WINDOW_MS) { lookups.delete(ip); return false; }
+  return rec.count >= RECEIPT_MAX_LOOKUPS;
+}
+
+function noteLookup(ip) {
+  const rec = lookups.get(ip);
+  if (!rec || Date.now() - rec.first > RECEIPT_WINDOW_MS) {
+    lookups.set(ip, { count: 1, first: Date.now() });
+  } else {
+    rec.count += 1;
+  }
+}
+
+/**
+ * What a buyer is allowed to see. An explicit allowlist rather than the whole
+ * order record, so a field added to fulfilment later has to be opted in here
+ * instead of leaking from a public endpoint by default.
+ */
+function publicReceipt(o) {
+  return {
+    receiptNo: o.receiptNo || null,
+    created: o.created,
+    mode: o.mode,
+    paymentStatus: o.paymentStatus,
+    currency: o.currency,
+    amountSubtotal: o.amountSubtotal == null ? null : o.amountSubtotal,
+    amountTotal: o.amountTotal,
+    email: o.email || null,
+    name: o.name || null,
+    codes: o.codes || '',
+    lines: Array.isArray(o.lines) ? o.lines : null,
+    shipping: o.shipping || null,
+    stripeReceiptUrl: o.stripeReceiptUrl || null,
+    invoiceUrl: o.invoiceUrl || null,
+    invoicePdf: o.invoicePdf || null
+  };
 }
 
 /* ----------------------------------------------------------- validation */
@@ -336,11 +390,36 @@ const server = http.createServer(function (req, res) {
         return send(res, err.statusCode === 503 ? 503 : 400, { error: 'Invalid signature.' });
       }
       try {
-        const result = checkout.handleEvent(event);
+        const result = await checkout.handleEvent(event);
         return send(res, 200, { received: true, fulfilled: Boolean(result.fulfilled) });
       } catch (err) {
         console.error('  [stripe] handler failed: ' + err.message);
         return send(res, 500, { error: 'Handler error.' });   // Stripe will retry
+      }
+    }
+
+    // ---- a customer's receipt. The session id from the return URL is the
+    // whole credential: unguessable, and issued only to whoever paid. If the
+    // order is not on file yet this reads it back from Stripe and records it,
+    // which is what makes receipts work on localhost, where no webhook lands.
+    if (pathname === '/api/receipt' && req.method === 'GET') {
+      if (receiptBlocked(ip)) {
+        return send(res, 429, { error: 'Too many lookups. Try again shortly.' });
+      }
+      noteLookup(ip);
+      try {
+        const receipt = await checkout.receiptFor(parsed.searchParams.get('session_id'));
+        if (!receipt) return send(res, 404, { error: 'No receipt for that order.' });
+        return send(res, 200, { receipt: publicReceipt(receipt) });
+      } catch (err) {
+        const status = err.statusCode || 502;
+        // Stripe's own 404 text names the object it could not find; ours says
+        // nothing an id-guessing caller could learn from.
+        if (status === 404) return send(res, 404, { error: 'No receipt for that order.' });
+        if (status >= 500) console.error('  [stripe] receipt lookup failed: ' + err.message);
+        return send(res, status, {
+          error: status >= 500 ? 'Could not load that receipt right now.' : err.message
+        });
       }
     }
 

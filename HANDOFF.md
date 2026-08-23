@@ -36,9 +36,11 @@ Site on http://localhost:8080, admin at `/admin.html`.
 | Path | What it is |
 |------|------------|
 | `index.html` | The entire site — markup, CSS and JS in one file |
-| `admin.html` | Sign-in and catalogue editor |
+| `admin.html` | Sign-in, catalogue editor, receipts list |
+| `receipt.html` | The customer's receipt, printable to PDF |
 | `server/server.js` | HTTP server, auth, catalogue + Stripe routes |
-| `server/stripe-checkout.js` | Checkout Sessions, webhooks, reconciliation |
+| `server/stripe-checkout.js` | Checkout Sessions, webhooks, receipts, reconciliation |
+| `server/test-receipts.js` | Receipt suite — `npm.cmd test`, no network |
 | `server/set-password.js` | Sets the admin password (scrypt hash) |
 | `server/sync-page.js` | Bakes the live catalogue into `index.html` |
 | `server/create-payment-links.js` | Payment Links for static copies |
@@ -67,6 +69,15 @@ button (no cart). With the server up it posts `{code, qty}` to `/api/checkout`
 and the server prices it from the catalogue; without a server it opens that
 item's Stripe Payment Link.
 
+**Receipts** — every paid order gets a number (`NV-2026-0001`, sequential per
+calendar year) and a page at `/receipt.html?session_id=…` in the shop's own
+type and colours, printable to PDF. Line detail is *copied onto the order at
+the moment of sale*, never looked up live, so re-pricing an item in the admin
+panel cannot rewrite what a past customer was charged. Stripe also emails its
+own receipt, and payment-mode sessions raise a hosted invoice + PDF whose URLs
+the page links. Admin has a **Receipts** list with a *Reconcile with Stripe*
+button.
+
 ## Things to be careful about
 
 1. **Prices are never taken from the client.** The browser sends codes and
@@ -83,13 +94,27 @@ item's Stripe Payment Link.
    old price.
 5. **Tax is deliberately off.** `automatic_tax` without an active registration
    collects nothing while appearing to work.
-6. **Fulfilment lives in the webhook**, not the success page.
+6. **Fulfilment lives in the webhook**, not the success page. `/api/receipt` is
+   a second, safe path into it: it retrieves the session from Stripe and
+   records it if no webhook arrived. Stripe's answer decides whether it was
+   paid — the id in the URL only picks which session to ask about.
+7. **A receipt's line prices are frozen.** They're stored on the order, not
+   joined from the catalogue. Don't "simplify" that into a lookup.
+8. **Restricted keys need more scopes now**: Charges read, Invoices read and
+   PaymentIntents **write**, on top of the old set. Without the last one
+   receipts still render, but Stripe sends no email.
 
 ## Where it stands
 
 Working and verified: the site, admin CRUD, Stripe Checkout, webhook handling
 (9/9 signature and fulfilment tests), Payment Links, and a real test purchase
 (`$32.00`, recorded as paid).
+
+Receipts are working and verified end to end: `npm.cmd test` is 25/25, and the
+real `$32.00` order was backfilled from its old thin record into a full receipt
+— number, line detail, shipping address and Stripe's hosted receipt URL — then
+rendered at `/receipt.html`. Its `invoiceUrl` is empty because that sale
+predates `invoice_creation`; new payment-mode orders get one.
 
 **Placeholder content that needs replacing before launch:**
 - Book titles are "Example 1/2/3" with invented subtitles, page counts, prices
@@ -108,6 +133,15 @@ Working and verified: the site, admin CRUD, Stripe Checkout, webhook handling
 - Orders are a JSON file.
 - No HTTPS, so the session cookie isn't `Secure`.
 - Not deployed anywhere.
+- **The receipt email is Stripe's, not NV's** — Stripe's template and Dashboard
+  branding, and *in test mode it only reaches your own account address*. An
+  NV-designed email needs a sending domain and a provider; the receipt page is
+  already ours, so that email only has to carry a link to it.
+- **Refunds don't reach the receipt.** A refund issued in the Dashboard leaves
+  the page still reading "Paid".
+- `nv-editions-standalone.html` is now stale against `index.html` (it predates
+  the receipt link on the success toast). Receipts need a server, so the
+  standalone loses nothing — but rebuild it before republishing the artifact.
 
 ## Environment quirks that wasted time before
 

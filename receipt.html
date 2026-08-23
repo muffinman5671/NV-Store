@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Receipt — NV Editions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400..800&family=Archivo:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Tokens are lifted verbatim from index.html so the receipt is unmistakably
+   the same shop. Light is the complete base set; dark redefines only what
+   changes, under both the media query and the explicit attribute. */
+:root{
+  --bg:#F2EDE3; --bg-2:#FBF8F2; --bg-3:#E7E0D1;
+  --fg:#17120C; --fg-2:#4C4338; --fg-3:#6B6152;
+  --line:rgba(23,18,12,.15); --line-2:rgba(23,18,12,.07);
+  --ember:#9E5F0F; --ember-glow:rgba(158,95,15,.16);
+  --verd:#2A5A42;
+  --shadow:0 1px 2px rgba(23,18,12,.05), 0 16px 40px -16px rgba(23,18,12,.22);
+  --on-ember:#FFF8EC;
+  --r:16px;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0A0806; --bg-2:#121009; --bg-3:#1B1710;
+    --fg:#F6F1E7; --fg-2:#B4AA99; --fg-3:#948B7B;
+    --line:rgba(242,217,168,.17); --line-2:rgba(242,217,168,.08);
+    --ember:#E8A13C; --ember-glow:rgba(232,161,60,.24); --on-ember:#120D06;
+    --verd:#7FB894;
+    --shadow:0 1px 2px rgba(0,0,0,.5), 0 26px 60px -20px rgba(0,0,0,.8);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0A0806; --bg-2:#121009; --bg-3:#1B1710;
+  --fg:#F6F1E7; --fg-2:#B4AA99; --fg-3:#948B7B;
+  --line:rgba(242,217,168,.17); --line-2:rgba(242,217,168,.08);
+  --ember:#E8A13C; --ember-glow:rgba(232,161,60,.24); --on-ember:#120D06;
+  --verd:#7FB894;
+  --shadow:0 1px 2px rgba(0,0,0,.5), 0 26px 60px -20px rgba(0,0,0,.8);
+}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--bg); color:var(--fg);
+  font-family:"Archivo",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  font-weight:300; font-size:1.0625rem; line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+  padding:clamp(1.5rem,5vw,4rem) 1.25rem clamp(3rem,8vw,6rem);
+}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--ember);outline-offset:3px;border-radius:3px}
+
+.display{font-family:"Bodoni Moda",Georgia,"Times New Roman",serif;
+  font-weight:500;letter-spacing:-.02em;line-height:1;text-wrap:balance}
+.mono{font-family:"JetBrains Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+  font-size:.6875rem;letter-spacing:.18em;text-transform:uppercase;font-weight:400}
+.tnum{font-variant-numeric:tabular-nums}
+
+/* ---------- the slab ---------- */
+.sheet{
+  width:min(46rem,100%); margin-inline:auto;
+  background:var(--bg-2); border:1px solid var(--line-2);
+  border-radius:var(--r); box-shadow:var(--shadow);
+  padding:clamp(1.5rem,4.5vw,3.25rem);
+}
+
+.crest{display:flex;align-items:flex-start;justify-content:space-between;
+  gap:1.5rem;flex-wrap:wrap;
+  padding-bottom:1.5rem;border-bottom:1px solid var(--line)}
+.crest .mark{font-size:clamp(1.75rem,5vw,2.5rem)}
+.crest .mark small{display:block;margin-top:.55rem;color:var(--fg-3)}
+.stamp{text-align:right}
+.stamp .no{font-family:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  font-size:1.0625rem;letter-spacing:.06em;font-weight:500;color:var(--ember)}
+.stamp .mono{display:block;color:var(--fg-3);margin-bottom:.3rem}
+
+/* Scoped to .stamp so it outranks `.stamp .mono` above, which would otherwise
+   win on specificity and repaint the pill in --fg-3 as a block. */
+.stamp .paid{display:inline-flex;align-items:center;gap:.45rem;margin-top:.7rem;
+  padding:.2rem .6rem;border-radius:999px;
+  background:color-mix(in srgb,var(--verd) 14%,transparent);
+  color:var(--verd);border:1px solid color-mix(in srgb,var(--verd) 34%,transparent)}
+.stamp .paid[hidden]{display:none}
+.stamp .paid::before{content:"";width:.4rem;height:.4rem;border-radius:50%;background:currentColor}
+
+/* ---------- meta ---------- */
+.meta{display:grid;gap:1.25rem 2rem;
+  grid-template-columns:repeat(auto-fit,minmax(11rem,1fr));
+  padding-block:1.75rem;border-bottom:1px solid var(--line-2)}
+.meta dt{color:var(--fg-3);margin-bottom:.3rem}
+.meta dd{margin:0;font-weight:400;overflow-wrap:anywhere}
+.meta .addr{white-space:pre-line;line-height:1.5}
+
+/* ---------- lines ---------- */
+.linesWrap{overflow-x:auto;padding-block:.5rem}
+table{width:100%;border-collapse:collapse;min-width:26rem}
+thead th{color:var(--fg-3);text-align:left;font-weight:400;
+  padding:1.25rem 0 .6rem;border-bottom:1px solid var(--line)}
+thead th.r,td.r{text-align:right}
+tbody td{padding:1rem 0;border-bottom:1px solid var(--line-2);vertical-align:top}
+tbody tr:last-child td{border-bottom:0}
+.item{font-weight:400}
+.item .code{display:block;margin-top:.25rem;color:var(--fg-3)}
+td.r{white-space:nowrap;padding-left:1.25rem}
+.qty{color:var(--fg-2);white-space:nowrap;padding-left:1.25rem}
+
+.totals{margin-top:.5rem;padding-top:1.25rem;border-top:1px solid var(--line);
+  display:grid;gap:.55rem;justify-content:end}
+.trow{display:grid;grid-template-columns:auto minmax(6.5rem,auto);
+  gap:2rem;align-items:baseline}
+.trow span:last-child{text-align:right}
+.trow.grand{margin-top:.4rem;padding-top:.85rem;border-top:1px solid var(--line-2);
+  font-size:1.375rem;font-family:"Bodoni Moda",Georgia,serif;font-weight:500}
+.trow.grand span:first-child{font-family:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  font-size:.6875rem;letter-spacing:.18em;text-transform:uppercase;color:var(--fg-3)}
+
+/* ---------- footer ---------- */
+.foot{margin-top:2rem;padding-top:1.5rem;border-top:1px solid var(--line);
+  color:var(--fg-2);font-size:.9375rem}
+.foot p{margin:0 0 .75rem}
+.foot a{color:var(--ember);text-decoration:underline;text-underline-offset:2px}
+
+.actions{display:flex;gap:.75rem;flex-wrap:wrap;margin-top:1.75rem}
+.btn{font-family:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  font-size:.6875rem;letter-spacing:.18em;text-transform:uppercase;
+  padding:.7rem 1.15rem;border-radius:999px;cursor:pointer;
+  border:1px solid var(--line);background:transparent;color:var(--fg);
+  text-decoration:none;display:inline-flex;align-items:center;
+  transition:border-color .2s,background .2s}
+.btn:hover{border-color:var(--ember);background:var(--ember-glow)}
+.btn.primary{background:var(--ember);color:var(--on-ember);border-color:var(--ember)}
+.btn.primary:hover{filter:brightness(1.08)}
+
+/* ---------- states ---------- */
+.state{text-align:center;padding:3.5rem 1rem;color:var(--fg-2)}
+.state h1{font-size:clamp(1.5rem,4vw,2rem);color:var(--fg);margin:0 0 .75rem}
+.state .mono{display:block;margin-bottom:1rem;color:var(--fg-3)}
+[hidden]{display:none !important}
+
+/* ---------- print ---------- */
+@media print{
+  body{background:#fff;color:#000;padding:0}
+  .sheet{box-shadow:none;border:0;background:#fff;color:#000;width:100%;padding:0}
+  .actions,.noprint{display:none !important}
+  a{text-decoration:none;color:#000}
+  .stamp .no,.foot a{color:#000}
+  tbody tr{break-inside:avoid}
+}
+</style>
+</head>
+<body>
+
+<main class="sheet" id="sheet">
+  <div class="state" id="loading">
+    <span class="mono">NV Editions</span>
+    <h1 class="display">Fetching your receipt…</h1>
+    <p>One moment.</p>
+  </div>
+
+  <div class="state" id="failed" hidden>
+    <span class="mono">NV Editions</span>
+    <h1 class="display" id="failTitle">We could not find that receipt</h1>
+    <p id="failMsg">Check the link from your confirmation, or write to us and we will send a copy.</p>
+    <div class="actions" style="justify-content:center">
+      <a class="btn" href="/">Back to the store</a>
+    </div>
+  </div>
+
+  <div id="ready" hidden>
+    <header class="crest">
+      <div class="mark display">NV<small class="mono">NV Editions · Chicago</small></div>
+      <div class="stamp">
+        <span class="mono">Receipt</span>
+        <div class="no tnum" id="rNo">—</div>
+        <div class="paid mono" id="rPaid" hidden>Paid</div>
+      </div>
+    </header>
+
+    <dl class="meta">
+      <div><dt class="mono">Date</dt><dd class="tnum" id="rDate">—</dd></div>
+      <div><dt class="mono">Billed to</dt><dd id="rBilled">—</dd></div>
+      <div><dt class="mono">Order</dt><dd id="rMode">—</dd></div>
+      <div id="rShipWrap" hidden>
+        <dt class="mono">Ships to</dt><dd class="addr" id="rShip">—</dd>
+      </div>
+    </dl>
+
+    <div class="linesWrap">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col" class="mono">Item</th>
+            <th scope="col" class="mono r">Qty</th>
+            <th scope="col" class="mono r">Each</th>
+            <th scope="col" class="mono r">Amount</th>
+          </tr>
+        </thead>
+        <tbody id="rLines"></tbody>
+      </table>
+    </div>
+
+    <div class="totals" id="rTotals"></div>
+
+    <div class="foot">
+      <p id="rNote">Thank you. Your order is confirmed.</p>
+      <p class="noprint" id="rLinks"></p>
+      <p>Questions about this order? Quote your receipt number and we will find it.</p>
+    </div>
+
+    <div class="actions noprint">
+      <button class="btn primary" type="button" id="rPrint">Print or save PDF</button>
+      <a class="btn" href="/">Back to the store</a>
+    </div>
+  </div>
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  function fail(title, msg) {
+    $("loading").hidden = true;
+    $("ready").hidden = true;
+    if (title) $("failTitle").textContent = title;
+    if (msg) $("failMsg").textContent = msg;
+    $("failed").hidden = false;
+  }
+
+  // Amounts arrive in the currency's minor unit, as Stripe stores them.
+  function money(cents, currency) {
+    if (cents == null) return "—";
+    try {
+      return new Intl.NumberFormat(undefined, {
+        style: "currency", currency: (currency || "usd").toUpperCase()
+      }).format(cents / 100);
+    } catch (e) {
+      return (cents / 100).toFixed(2) + " " + (currency || "").toUpperCase();
+    }
+  }
+
+  function when(iso) {
+    var d = new Date(iso);
+    if (isNaN(d)) return "—";
+    return d.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" });
+  }
+
+  function address(s) {
+    return [
+      s.name,
+      s.line1,
+      s.line2,
+      [s.city, s.state].filter(Boolean).join(", "),
+      s.postalCode,
+      s.country
+    ].filter(Boolean).join("\n");
+  }
+
+  function cell(text, cls) {
+    var td = document.createElement("td");
+    if (cls) td.className = cls;
+    td.textContent = text;
+    return td;
+  }
+
+  function totalRow(label, value, grand) {
+    var row = document.createElement("div");
+    row.className = "trow" + (grand ? " grand" : "");
+    var a = document.createElement("span");
+    a.textContent = label;
+    if (!grand) a.className = "mono";
+    var b = document.createElement("span");
+    b.className = "tnum";
+    b.textContent = value;
+    row.appendChild(a);
+    row.appendChild(b);
+    return row;
+  }
+
+  function render(r) {
+    $("rNo").textContent = r.receiptNo || "—";
+    $("rDate").textContent = when(r.created);
+    $("rBilled").textContent = r.name ? (r.name + " · " + (r.email || "")) : (r.email || "—");
+    $("rMode").textContent = r.mode === "subscription"
+      ? "Monthly subscription"
+      : "One-off purchase";
+
+    if (r.paymentStatus && r.paymentStatus !== "unpaid") $("rPaid").hidden = false;
+
+    if (r.shipping) {
+      $("rShip").textContent = address(r.shipping);
+      $("rShipWrap").hidden = false;
+    }
+
+    // Line detail is stored at the time of sale. Older orders predate that,
+    // so fall back to the codes the session carried rather than an empty table.
+    var body = $("rLines");
+    body.textContent = "";
+    var lines = r.lines;
+    if (!lines || !lines.length) {
+      lines = (r.codes || "").split(",").filter(Boolean).map(function (code) {
+        return { description: code.trim(), code: null, quantity: null,
+                 unitAmount: null, amountTotal: null };
+      });
+    }
+    lines.forEach(function (li) {
+      var tr = document.createElement("tr");
+      var td = document.createElement("td");
+      td.className = "item";
+      td.appendChild(document.createTextNode(li.description || "Item"));
+      if (li.code) {
+        var code = document.createElement("span");
+        code.className = "code mono";
+        code.textContent = li.code + (li.recurring ? " · monthly" : "");
+        td.appendChild(code);
+      }
+      tr.appendChild(td);
+      tr.appendChild(cell(li.quantity == null ? "—" : String(li.quantity), "qty tnum r"));
+      tr.appendChild(cell(money(li.unitAmount, r.currency), "r tnum"));
+      tr.appendChild(cell(money(li.amountTotal, r.currency), "r tnum"));
+      body.appendChild(tr);
+    });
+
+    var totals = $("rTotals");
+    totals.textContent = "";
+    if (r.amountSubtotal != null && r.amountSubtotal !== r.amountTotal) {
+      totals.appendChild(totalRow("Subtotal", money(r.amountSubtotal, r.currency)));
+    }
+    totals.appendChild(totalRow("Total paid", money(r.amountTotal, r.currency), true));
+
+    if (r.mode === "subscription") {
+      $("rNote").textContent = "Thank you. Your subscription is active, and renews monthly " +
+        "until you cancel.";
+    }
+
+    // Stripe's own hosted copies, when the invoice and charge exist.
+    var links = $("rLinks");
+    links.textContent = "";
+    [
+      [r.invoicePdf, "Download the PDF invoice"],
+      [r.stripeReceiptUrl, "View the payment receipt from Stripe"]
+    ].forEach(function (pair) {
+      if (!pair[0]) return;
+      if (links.childNodes.length) links.appendChild(document.createTextNode(" · "));
+      var a = document.createElement("a");
+      a.href = pair[0];
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      a.textContent = pair[1];
+      links.appendChild(a);
+    });
+
+    document.title = (r.receiptNo || "Receipt") + " — NV Editions";
+    $("loading").hidden = true;
+    $("ready").hidden = false;
+  }
+
+  $("rPrint").addEventListener("click", function () { window.print(); });
+
+  var id = new URLSearchParams(location.search).get("session_id");
+  if (!id) {
+    fail("No order reference", "This link is missing its order reference. Use the link " +
+      "from your confirmation email or the page you landed on after paying.");
+    return;
+  }
+
+  fetch("/api/receipt?session_id=" + encodeURIComponent(id), {
+    headers: { "Accept": "application/json" },
+    credentials: "same-origin"
+  })
+    .then(function (res) {
+      return res.json().catch(function () { return {}; }).then(function (data) {
+        if (!res.ok) throw new Error(data.error || "That receipt could not be loaded.");
+        return data;
+      });
+    })
+    .then(function (data) {
+      if (!data.receipt) throw new Error("That receipt could not be loaded.");
+      render(data.receipt);
+    })
+    .catch(function (err) {
+      fail("We could not load that receipt", err.message);
+    });
+})();
+</script>
+</body>
+</html>
