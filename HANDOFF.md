@@ -116,6 +116,23 @@ real `$32.00` order was backfilled from its old thin record into a full receipt
 rendered at `/receipt.html`. Its `invoiceUrl` is empty because that sale
 predates `invoice_creation`; new payment-mode orders get one.
 
+A second live test purchase confirmed the rest (`NV-2026-0002`, `NV / S-03`,
+`$3,200.00`, session `cs_test_a1855b…`):
+
+- **`invoice_creation` works** — hosted invoice and PDF URLs both populated,
+  invoice `status: paid`.
+- **`receipt_email` is set** on the succeeded PaymentIntent
+  (`pi_3U7haC314qYsa67l01BOWYyr`), read back from the API rather than assumed.
+- **Fulfilment without a webhook works.** `orders.json` was checked first and
+  did *not* contain the session — no webhook arrived, as expected on localhost.
+  Loading the receipt recorded it. That fallback is now proven, not theoretical.
+- No shipping row, correctly, since a service does not ship.
+
+Note that **`receipt_email` being set is our half only.** Whether Stripe
+actually dispatches the mail depends on Dashboard → Settings → Emails →
+"Successful payments" being enabled, and in test mode it delivers solely to the
+account owner's address.
+
 **Placeholder content that needs replacing before launch:**
 - Book titles are "Example 1/2/3" with invented subtitles, page counts, prices
 - Service names, scopes, timelines and prices are drafts from the founder bio

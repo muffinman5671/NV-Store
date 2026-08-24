@@ -177,7 +177,10 @@ the shop's own type and colours, and prints to PDF.
   one. Payment-mode sessions also enable `invoice_creation`, giving a hosted
   invoice and a PDF; both URLs are captured and linked from our page.
   Sending is best effort — a receipt that fails to send never fails an order.
-  **In test mode Stripe only delivers these to your own account address.**
+  **In test mode Stripe only delivers these to your own account address**, and
+  delivery also needs Dashboard → Settings → Emails → "Successful payments"
+  switched on. Setting `receipt_email` is all this code can do; dispatch is a
+  Dashboard setting.
 - **Old orders are backfilled.** Re-seeing a session fills in detail an earlier
   thin record missed, so orders written before receipts existed gain a number
   and line prices without being counted as new sales.
