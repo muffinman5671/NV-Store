@@ -12,7 +12,9 @@ const path = require('path');
 const crypto = require('crypto');
 const Stripe = require('stripe');
 
-const DATA_DIR = path.join(__dirname, 'data');
+// Kept in step with server.js: NV_DATA_DIR moves runtime data onto a mounted
+// volume, so a deploy on an ephemeral filesystem does not erase the orders.
+const DATA_DIR = process.env.NV_DATA_DIR || path.join(__dirname, 'data');
 const CATALOGUE = path.join(DATA_DIR, 'catalogue.json');
 // Overridable so the tests can run against a scratch file. Nothing else sets
 // it — real orders always live in server/data/orders.json.

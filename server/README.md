@@ -189,6 +189,50 @@ Run `npm test` for the receipt suite — 25 cases covering numbering, line
 capture, shipping, idempotent fulfilment, backfill, and the id guard. It uses
 a scratch orders file and never touches `server/data/orders.json`.
 
+### Deploying
+
+`render.yaml` in the repo root is a Render blueprint: New > Blueprint, point it
+at the repo, then fill in the four secrets it marks `sync: false`.
+
+**The one thing you cannot skip is persistent storage.** This app writes
+`catalogue.json`, `orders.json` and `admin.json` at runtime, and hosted
+platforms give you an ephemeral filesystem that is wiped on every deploy and
+restart. Without a volume you would take a real order and then destroy it on
+the next push, customer email and delivery address included. `NV_DATA_DIR`
+points that data at a mounted disk; the blueprint mounts one at `/var/data`.
+
+On first boot against an empty volume the catalogue is copied across
+automatically, so the store comes up stocked. Orders and the admin hash are
+never seeded — the first is the customer's, the second belongs in the
+environment.
+
+Set on the host:
+
+| Variable | Value |
+|----------|-------|
+| `NODE_ENV` | `production` — this is what makes the session cookie `Secure` |
+| `NV_DATA_DIR` | the volume mount path, e.g. `/var/data` |
+| `PUBLIC_URL` | the real `https://` origin, or Checkout returns customers to the wrong place |
+| `STRIPE_SECRET_KEY` | live restricted key, scoped as above |
+| `STRIPE_WEBHOOK_SECRET` | from the Dashboard endpoint, below |
+| `NV_ADMIN_HASH` | `node server/set-password.js --print` |
+
+Then, in order:
+
+1. Deploy, and confirm the site loads over https.
+2. Add a webhook endpoint in the Stripe Dashboard pointing at
+   `https://<your-domain>/api/stripe-webhook`, subscribed to
+   `checkout.session.completed`, `checkout.session.async_payment_succeeded`
+   and `checkout.session.async_payment_failed`. Put its `whsec_…` in
+   `STRIPE_WEBHOOK_SECRET`. This is also the only way to get a real signing
+   secret if the Stripe CLI is blocked on your machine.
+3. Point DNS at the host: an A record for the apex, a CNAME for `www`.
+4. Make one live purchase and confirm the order appears and the receipt renders.
+
+A disk pins the service to a single instance and trades zero-downtime deploys
+for a short gap. Fine for a low-volume shop; the signal to move the JSON files
+into a database is wanting more than one instance.
+
 ### Not done yet
 
 - **Tax is deliberately off.** Enabling `automatic_tax` without an active
@@ -203,7 +247,10 @@ a scratch orders file and never touches `server/data/orders.json`.
 - **No refund or cancellation flow.** A refund issued in the Dashboard does not
   change what the receipt page shows.
 - **Live mode** needs HTTPS, a Dashboard webhook endpoint (the CLI is for
-  development only), and a fresh review of the Go Live checklist.
+  development only), and a fresh review of the Go Live checklist. See
+  **Deploying** above.
+- **Sessions are in memory.** Every deploy and restart signs the admin out.
+  Harmless, but on a host that restarts on its own it will look like a bug.
 
 ### Static copies: Payment Links
 

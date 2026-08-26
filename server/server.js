@@ -20,7 +20,13 @@ const crypto = require('crypto');
 const checkout = require('./stripe-checkout');
 
 const ROOT = path.resolve(__dirname, '..');
-const DATA_DIR = path.join(__dirname, 'data');
+
+// Data that changes at runtime. NV_DATA_DIR moves it onto a mounted volume:
+// hosted platforms give you an ephemeral filesystem, so anything written
+// inside the repo directory is erased on every deploy and every restart —
+// which for this app means the orders taken since the last push.
+const BUNDLED_DATA_DIR = path.join(__dirname, 'data');
+const DATA_DIR = process.env.NV_DATA_DIR || BUNDLED_DATA_DIR;
 const CATALOGUE = path.join(DATA_DIR, 'catalogue.json');
 const ADMIN = path.join(DATA_DIR, 'admin.json');
 const PORT = Number(process.env.PORT) || 8080;
@@ -53,6 +59,51 @@ function writeJSON(file, value) {
 function loadCatalogue() {
   const data = readJSON(CATALOGUE, { items: [] });
   return Array.isArray(data.items) ? data : { items: [] };
+}
+
+/**
+ * A deployment points NV_DATA_DIR at a volume, which starts out empty. The
+ * catalogue is source data that ships in the repo, so copy it across on first
+ * boot — without this the store comes up with nothing in it and every Buy
+ * button 404s on its code.
+ *
+ * Only the catalogue is seeded. Orders are the customer's and cannot be
+ * invented, and the admin hash belongs in NV_ADMIN_HASH, not in the image.
+ */
+function seedDataDir() {
+  if (DATA_DIR === BUNDLED_DATA_DIR) return;
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  if (fs.existsSync(CATALOGUE)) return;                 // already seeded; leave edits alone
+  const bundled = path.join(BUNDLED_DATA_DIR, 'catalogue.json');
+  if (!fs.existsSync(bundled)) return;
+  fs.copyFileSync(bundled, CATALOGUE);
+  console.log('  Seeded catalogue.json into ' + DATA_DIR);
+}
+
+/**
+ * The admin credential, from the environment first and the data file second.
+ *
+ * server/data/admin.json is gitignored and a hosted deploy has nowhere
+ * durable to run set-password.js before first boot, so a fresh deployment
+ * would otherwise come up with no password and lock you out of the admin
+ * panel entirely. NV_ADMIN_HASH carries exactly what the file carries — a
+ * salt and an scrypt hash, as "<saltHex>:<hashHex>". The password itself is
+ * still never stored anywhere.
+ */
+function loadAdmin() {
+  const fromEnv = process.env.NV_ADMIN_HASH;
+  if (!fromEnv) return readJSON(ADMIN, null);
+
+  const parts = fromEnv.trim().split(':');
+  const hex = /^[0-9a-fA-F]+$/;
+  if (parts.length !== 2 || !hex.test(parts[0]) || !hex.test(parts[1])) {
+    // Loud, because the alternative is a silent fallback to a file that is
+    // not there and a login that can never succeed.
+    console.error('  NV_ADMIN_HASH is set but malformed - expected "<saltHex>:<hashHex>".');
+    console.error('  Generate one with:  node server/set-password.js --print');
+    return null;
+  }
+  return { salt: parts[0], hash: parts[1] };
 }
 
 /* ------------------------------------------------------------- passwords */
@@ -453,7 +504,7 @@ const server = http.createServer(function (req, res) {
         return send(res, 429, { error: 'Too many attempts. Try again later.' });
       }
       const body = await readBody(req);
-      const admin = readJSON(ADMIN, null);
+      const admin = loadAdmin();
       if (!admin) {
         return send(res, 500, { error: 'No admin password set. Run: node server/set-password.js' });
       }
@@ -531,10 +582,24 @@ const server = http.createServer(function (req, res) {
   });
 });
 
+seedDataDir();
+
 server.listen(PORT, function () {
-  if (!fs.existsSync(ADMIN)) {
+  if (!loadAdmin()) {
     console.log('\n  No admin password set yet.');
-    console.log('  Run:  node server/set-password.js\n');
+    console.log('  Local:    node server/set-password.js');
+    console.log('  Deployed: node server/set-password.js --print, then set NV_ADMIN_HASH\n');
+  }
+  if (DATA_DIR !== BUNDLED_DATA_DIR) {
+    console.log('  Data directory:     ' + DATA_DIR);
+  }
+  // Only the genuinely wrong combination: served over https, but NODE_ENV is
+  // not production, so the session cookie goes out without Secure. A local
+  // PUBLIC_URL of http://localhost is correct and must not warn, or the
+  // warning becomes noise and stops being read.
+  if (/^https:/i.test(process.env.PUBLIC_URL || '') && process.env.NODE_ENV !== 'production') {
+    console.log('  WARNING: PUBLIC_URL is https but NODE_ENV is not "production" —');
+    console.log('           the admin session cookie will be sent without Secure.');
   }
   console.log('  NV store running at http://localhost:' + PORT);
   console.log('  Admin panel:        http://localhost:' + PORT + '/admin.html\n');

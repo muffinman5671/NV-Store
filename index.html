@@ -787,26 +787,12 @@ footer{border-top:1px solid var(--line-2);padding:3.5rem 0 2.5rem;color:var(--fg
 </section>
 
 
-<!-- ============ VOICES ============ -->
-<section class="sec">
-  <div class="wrap">
-    <div class="eyebrow mono rv"><span>03 &mdash; Readers</span></div>
-    <div class="voices">
-      <div class="voice rv">
-        <p>&ldquo;I have re-read Example 1 three times. It is the only business book I keep on the desk rather than the shelf.&rdquo;</p>
-        <div class="who mono"><b>Mira Halloran</b>Founder, Vantage Type</div>
-      </div>
-      <div class="voice rv">
-        <p>&ldquo;The engagement ended with a plan we could actually execute, not a slide deck. No hype, no upsell, just someone competent doing the work.&rdquo;</p>
-        <div class="who mono"><b>Tobias Wren</b>Staff engineer</div>
-      </div>
-      <div class="voice rv">
-        <p>&ldquo;Four books a year sounded like a limitation until I realised it was the whole point. Nothing here is filler.&rdquo;</p>
-        <div class="who mono"><b>Anneke de Vries</b>Design lead, Kortrijk</div>
-      </div>
-    </div>
-  </div>
-</section>
+<!-- A "Readers" section sat here with three testimonials from invented people.
+     Removed rather than rewritten: fabricated reviews are an FTC problem, not
+     just a taste one. Restore it when there are real quotes to run, with
+     permission from whoever said them — the .voices/.voice/.quote styles are
+     still in the stylesheet, so it only needs the markup back. It was the last
+     numbered section (03) and nothing links to it, so nothing renumbers. -->
 
 <!-- ============ CLOSE ============ -->
 <section class="sec close" id="start">
@@ -1651,9 +1637,13 @@ footer{border-top:1px solid var(--line-2);padding:3.5rem 0 2.5rem;color:var(--fg
         "This preview uses a placeholder address. Replace it with the real one before the site goes live."
       ]],
       terms: ["Terms & privacy", [
-        "This is placeholder text. The published site needs real terms of sale and a real privacy policy, written for the jurisdiction NV trades in and the payment processor it uses.",
-        "That document should cover what data is collected at checkout, how long it is kept, who it is shared with, refund and returns rights, and how to request deletion.",
-        "Nothing here should be treated as a legal agreement."
+        "This is not a legal agreement, and it is not yet a privacy policy. It is an accurate description of what this site actually does with your information, written so that a solicitor can turn it into the real terms of sale and privacy policy NV still needs before trading.",
+        "Payment is handled entirely by Stripe. You are sent to Stripe's own checkout to pay, and your card details are entered there — they never reach NV's servers and NV never sees them. Stripe collects your email address, your name, and a billing address. If your order contains a print book it also collects a delivery address.",
+        "What NV keeps for each order: an order reference, a receipt number, the date, the amount and currency, whether it was paid, your email address and name, the titles and codes you bought with their quantities and the prices charged at the time, and a delivery address where one was collected. That record is what produces your receipt.",
+        "Two other companies see something. Stripe receives everything above, as the payment processor. Google serves the fonts this page uses, which means Google receives your IP address whenever you load the site, whether or not you buy anything.",
+        "There is no analytics, no tracking, no advertising, and no third-party scripts beyond those fonts. The only cookie this site sets is a sign-in cookie for the shop's own administrator, and it is never set for customers.",
+        "Order records are currently kept indefinitely; nothing deletes them automatically. A retention period is one of the decisions the real policy has to make. To ask what is held about you or to have it deleted, write to the address on the Contact panel — bearing in mind Stripe keeps its own copy under its own policy, and that records tied to a payment may have to be retained for tax or accounting reasons.",
+        "Refunds, returns and delivery rights are covered on the Shipping panel as a statement of intent. They are not yet contractual terms."
       ]]
     };
 

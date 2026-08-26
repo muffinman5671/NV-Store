@@ -23,5 +23,8 @@
   "private": "true",
   "dependencies": {
     "stripe": "^22.5.0"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

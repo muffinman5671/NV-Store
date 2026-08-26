@@ -1,0 +1,65 @@
+# Render blueprint for the NV store.
+#
+#   https://render.com/docs/blueprint-spec
+#
+# Deploying: push this file, then in Render choose New > Blueprint and point it
+# at the repo. Render creates the service and the disk; you fill in the four
+# secrets marked `sync: false`, which are deliberately never committed.
+#
+# The disk is the part that matters. Render's filesystem is otherwise ephemeral
+# and is wiped on every deploy and restart, which for this app would mean
+# losing the orders taken since the last push — customer emails, receipts and
+# delivery addresses included. NV_DATA_DIR moves that data onto the volume.
+#
+# A disk pins the service to a single instance and gives it a brief gap during
+# deploys, instead of the usual zero-downtime rollover. That is the right trade
+# for a low-volume shop and the wrong one for anything that needs to scale out;
+# at that point the JSON files should become a database.
+
+services:
+  - type: web
+    name: nv-store
+    runtime: node
+    plan: starter                 # a disk requires a paid instance; there is no free tier with one
+    region: ohio                  # closest of Render's US regions to Chicago
+    branch: main
+    buildCommand: npm ci
+    startCommand: npm start
+
+    # Cheap and unauthenticated, so Render can poll it without logging in.
+    healthCheckPath: /api/catalogue
+
+    disk:
+      name: nv-data
+      mountPath: /var/data
+      sizeGB: 1                   # far more than JSON needs; the smallest size offered
+
+    envVars:
+      - key: NODE_ENV
+        value: production         # this is what makes the session cookie Secure
+
+      - key: NV_DATA_DIR
+        value: /var/data          # must match disk.mountPath above
+
+      # ---- secrets: set these in the Render dashboard, never in this file ----
+
+      # Restricted key (rk_live_…) scoped to Checkout Sessions write,
+      # Products/Prices read, Charges read, Invoices read, PaymentIntents write.
+      # PaymentIntents write is what lets Stripe send its receipt email.
+      - key: STRIPE_SECRET_KEY
+        sync: false
+
+      # From the Stripe Dashboard webhook endpoint pointed at
+      # https://<your-domain>/api/stripe-webhook — not from the CLI.
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+
+      # The public https:// origin, used to build Checkout return URLs.
+      # Wrong value here sends paying customers back to the wrong place.
+      - key: PUBLIC_URL
+        sync: false
+
+      # Admin credential as "<saltHex>:<hashHex>".
+      # Generate with:  node server/set-password.js --print
+      - key: NV_ADMIN_HASH
+        sync: false
