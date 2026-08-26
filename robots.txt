@@ -1,0 +1,14 @@
+# nv-store.store
+
+User-agent: *
+Allow: /
+
+# Not content. The admin panel is a login, the API is machine-readable, and a
+# receipt is private — reachable only with its Checkout Session id, and
+# receipt.html carries its own noindex tag as the real defence. This is just
+# the polite request on top.
+Disallow: /admin.html
+Disallow: /receipt.html
+Disallow: /api/
+
+Sitemap: https://nv-store.store/sitemap.xml

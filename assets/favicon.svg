@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="NV">
+  <!-- Source of truth for the mark. index.html inlines this as a data URI so the
+       icon survives the standalone and artifact copies, which have no /assets
+       path to resolve. Web fonts cannot load inside an SVG favicon, so the
+       serif stack is a real fallback rather than Bodoni Moda. -->
+  <rect width="64" height="64" rx="13" fill="#0A0806"/>
+  <text x="32" y="45" text-anchor="middle"
+        font-family="Georgia,'Times New Roman',serif"
+        font-size="33" font-weight="700" fill="#E8A13C">NV</text>
+</svg>

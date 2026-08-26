@@ -56,6 +56,8 @@ services:
 
       # The public https:// origin, used to build Checkout return URLs.
       # Wrong value here sends paying customers back to the wrong place.
+      # Production: https://nv-store.store — but set the temporary
+      # onrender.com URL first and only switch after DNS is pointed.
       - key: PUBLIC_URL
         sync: false
 

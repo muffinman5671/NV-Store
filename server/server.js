@@ -348,7 +348,11 @@ const TYPES = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
   '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8',
   '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
-  '.svg': 'image/svg+xml', '.mp4': 'video/mp4', '.ico': 'image/x-icon'
+  '.svg': 'image/svg+xml', '.mp4': 'video/mp4', '.ico': 'image/x-icon',
+  // Without these two the fallback is application/octet-stream, which makes a
+  // crawler fetching /robots.txt download it instead of read it.
+  '.txt': 'text/plain; charset=utf-8', '.xml': 'application/xml; charset=utf-8',
+  '.webmanifest': 'application/manifest+json'
 };
 
 function serveStatic(req, res, pathname) {
