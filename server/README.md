@@ -124,8 +124,11 @@ keeps the integration in PCI SAQ A.
 | POST   | `/api/checkout`        | public   | Create a Checkout Session      |
 | POST   | `/api/stripe-webhook`  | Stripe   | Signature-verified fulfilment  |
 | GET    | `/api/receipt`         | buyer    | One receipt, by `session_id`   |
+| GET    | `/api/download`        | buyer    | A file, by `session_id`+`asset`|
 | GET    | `/api/orders`          | admin    | Fulfilled orders               |
 | POST   | `/api/orders/sync`     | admin    | Reconcile against Stripe       |
+| PUT    | `/api/items/:id/assets`| admin    | Upload a downloadable file     |
+| DELETE | `/api/items/:id/assets/:assetId` | admin | Remove one            |
 
 ### Design decisions
 
@@ -188,6 +191,47 @@ the shop's own type and colours, and prints to PDF.
 Run `npm test` for the receipt suite — 25 cases covering numbering, line
 capture, shipping, idempotent fulfilment, backfill, and the id guard. It uses
 a scratch orders file and never touches `server/data/orders.json`.
+
+### Downloads
+
+Digital goods reach the buyer the instant payment clears, on the same receipt
+page they land on after checkout. No email, no login, no waiting.
+
+Files are uploaded per item through the admin panel (open an item for editing
+→ **Downloads**) and stored on the deployment volume at `NV_DATA_DIR/files`,
+alongside `orders.json` — for the same reason. A hosted filesystem is wiped on
+every deploy, and someone who bought a book last month still expects to
+download it today.
+
+- **The session id is the entitlement.** `/api/download` takes the same
+  unguessable Checkout Session id the receipt uses, so there is no account to
+  create and no second token to manage. It is rate-limited per address like
+  the receipt endpoint.
+- **Two checks before a byte is sent**: that the session was actually paid
+  (Stripe is asked if the order is not already on file), and that the
+  requested file belongs to an item *on that order*. Without the second, a
+  $32 book would unlock a $7,500 engagement's material. There is a test for
+  exactly that.
+- **On disk, a file is named by a generated id plus its extension** — never by
+  anything typed by a human. The original filename is metadata, used only for
+  `Content-Disposition`. Path traversal is not guarded against so much as made
+  unreachable.
+- **Files are joined at read time, not frozen onto the order.** This is the
+  deliberate opposite of how line *prices* work. A price must never change
+  after the sale; a file should — fix a typo or re-record a chapter and every
+  existing buyer gets the corrected copy on their next visit.
+- **A file missing from disk is never advertised.** If the catalogue lists an
+  asset the volume does not have, it is silently omitted rather than shown as
+  a download that 404s.
+- **Range requests are supported**, so audio can seek and an interrupted
+  download resumes instead of restarting.
+- Uploads are raw `PUT` bodies, not multipart — hand-parsing multipart is a
+  lot of fragile code for an admin form that sends one file at a time. Capped
+  at 500 MB, streamed to a temp name, renamed only on success.
+- **`server/data/files/` is gitignored.** This repo is public; committing the
+  paid goods would publish them for free.
+
+Allowed types: `.epub .pdf .mobi .azw3 .mp3 .m4a .m4b .flac .zip`.
 
 ### Deploying
 

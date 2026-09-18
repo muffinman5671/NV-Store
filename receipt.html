@@ -117,6 +117,32 @@ td.r{white-space:nowrap;padding-left:1.25rem}
 .trow.grand span:first-child{font-family:"JetBrains Mono",ui-monospace,Menlo,monospace;
   font-size:.6875rem;letter-spacing:.18em;text-transform:uppercase;color:var(--fg-3)}
 
+/* ---------- downloads ---------- */
+.downloads{margin-top:2rem;padding:1.5rem;border-radius:var(--r);
+  background:color-mix(in srgb,var(--ember) 7%,transparent);
+  border:1px solid color-mix(in srgb,var(--ember) 24%,transparent)}
+.downloads h2{margin:0 0 .35rem;color:var(--ember)}
+.downloads .dlNote{margin:0 0 1.1rem;color:var(--fg-2);font-size:.9375rem}
+.downloads ul{list-style:none;margin:0;padding:0;display:grid;gap:.6rem}
+.downloads li{display:flex;align-items:center;justify-content:space-between;
+  gap:1rem;flex-wrap:wrap;
+  padding:.85rem 1rem;border-radius:10px;
+  background:var(--bg-2);border:1px solid var(--line-2)}
+.downloads .dlWhat{min-width:0}
+.downloads .dlLabel{font-weight:400}
+.downloads .dlMeta{display:block;margin-top:.2rem;color:var(--fg-3);
+  font-family:"JetBrains Mono",ui-monospace,Menlo,monospace;font-size:.6875rem;
+  letter-spacing:.1em;text-transform:uppercase}
+.downloads a.dlBtn{flex:none;text-decoration:none;
+  font-family:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  font-size:.6875rem;letter-spacing:.18em;text-transform:uppercase;
+  /* min-height, not just padding: this is the button someone taps on a phone
+     to get the thing they just paid for, so it clears the 44px target. */
+  display:inline-flex;align-items:center;justify-content:center;
+  min-height:44px;padding:.6rem 1.15rem;border-radius:999px;
+  background:var(--ember);color:var(--on-ember);border:1px solid var(--ember)}
+.downloads a.dlBtn:hover{filter:brightness(1.08)}
+
 /* ---------- footer ---------- */
 .foot{margin-top:2rem;padding-top:1.5rem;border-top:1px solid var(--line);
   color:var(--fg-2);font-size:.9375rem}
@@ -204,6 +230,13 @@ td.r{white-space:nowrap;padding-left:1.25rem}
 
     <div class="totals" id="rTotals"></div>
 
+    <section class="downloads noprint" id="rDownloads" hidden>
+      <h2 class="mono">Your downloads</h2>
+      <p class="dlNote">Ready now. These stay on this page — bookmark it and
+        come back any time, on any device.</p>
+      <ul id="rDownloadList"></ul>
+    </section>
+
     <div class="foot">
       <p id="rNote">Thank you. Your order is confirmed.</p>
       <p class="noprint" id="rLinks"></p>
@@ -241,6 +274,16 @@ td.r{white-space:nowrap;padding-left:1.25rem}
     } catch (e) {
       return (cents / 100).toFixed(2) + " " + (currency || "").toUpperCase();
     }
+  }
+
+  // Rounded, not exact: a buyer wants to know whether this is a quick tap or
+  // a wait-for-wifi download, not the byte count.
+  function size(bytes) {
+    if (!bytes && bytes !== 0) return "";
+    if (bytes < 1024) return bytes + " B";
+    var mb = bytes / (1024 * 1024);
+    if (mb < 1) return Math.round(bytes / 1024) + " KB";
+    return (mb < 10 ? mb.toFixed(1) : Math.round(mb)) + " MB";
   }
 
   function when(iso) {
@@ -335,6 +378,44 @@ td.r{white-space:nowrap;padding-left:1.25rem}
     if (r.mode === "subscription") {
       $("rNote").textContent = "Thank you. Your subscription is active, and renews monthly " +
         "until you cancel.";
+    }
+
+    // Anything digital on this order, ready immediately. The links carry the
+    // same session id this page was opened with — that is the entitlement, so
+    // the page never needs a login and the file never needs a separate token.
+    var dl = Array.isArray(r.downloads) ? r.downloads : [];
+    if (dl.length) {
+      var list = $("rDownloadList");
+      list.textContent = "";
+      dl.forEach(function (d) {
+        var li = document.createElement("li");
+
+        var what = document.createElement("div");
+        what.className = "dlWhat";
+        var label = document.createElement("span");
+        label.className = "dlLabel";
+        label.textContent = d.label;
+        what.appendChild(label);
+        var meta = document.createElement("span");
+        meta.className = "dlMeta";
+        meta.textContent = [d.title, size(d.bytes)].filter(Boolean).join(" · ");
+        what.appendChild(meta);
+        li.appendChild(what);
+
+        var a = document.createElement("a");
+        a.className = "dlBtn";
+        a.href = "/api/download?session_id=" + encodeURIComponent(id) +
+                 "&asset=" + encodeURIComponent(d.assetId);
+        a.textContent = "Download";
+        // No `download` attribute: the server sends Content-Disposition, and
+        // letting it name the file keeps one source of truth for the filename.
+        li.appendChild(a);
+
+        list.appendChild(li);
+      });
+      $("rDownloads").hidden = false;
+      $("rNote").textContent = "Thank you. Your order is confirmed and your " +
+        "downloads are ready below.";
     }
 
     // Stripe's own hosted copies, when the invoice and charge exist.

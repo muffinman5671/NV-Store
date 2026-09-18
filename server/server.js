@@ -18,6 +18,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const checkout = require('./stripe-checkout');
+const files = require('./files');
 
 const ROOT = path.resolve(__dirname, '..');
 
@@ -220,6 +221,40 @@ function noteLookup(ip) {
  * order record, so a field added to fulfilment later has to be opted in here
  * instead of leaking from a public endpoint by default.
  */
+/**
+ * What a buyer can download, for the items on this specific order.
+ *
+ * Joined at read time from the catalogue rather than copied onto the order,
+ * which is the opposite of how line *prices* work and deliberately so. A
+ * price must be frozen at the moment of sale — what someone was charged can
+ * never change. A file is the other way round: if a typo is fixed or a
+ * chapter re-recorded, everyone who bought the book should get the corrected
+ * copy, not the one that happened to exist on the day they paid.
+ */
+function downloadsFor(order) {
+  const lines = Array.isArray(order.lines) ? order.lines : [];
+  const codes = lines.map(function (l) { return l.code; }).filter(Boolean);
+  // Fall back to the flat code list for orders recorded before line detail.
+  const wanted = new Set(codes.length ? codes : String(order.codes || '').split(',').map(function (c) { return c.trim(); }));
+
+  const out = [];
+  loadCatalogue().items.forEach(function (item) {
+    if (!wanted.has(item.code)) return;
+    (Array.isArray(item.assets) ? item.assets : []).forEach(function (a) {
+      if (!files.exists(a)) return;          // never advertise a file that is gone
+      out.push({
+        assetId: a.id,
+        label: a.label,
+        filename: a.filename,
+        bytes: a.bytes,
+        code: item.code,
+        title: item.title
+      });
+    });
+  });
+  return out;
+}
+
 function publicReceipt(o) {
   return {
     receiptNo: o.receiptNo || null,
@@ -236,7 +271,8 @@ function publicReceipt(o) {
     shipping: o.shipping || null,
     stripeReceiptUrl: o.stripeReceiptUrl || null,
     invoiceUrl: o.invoiceUrl || null,
-    invoicePdf: o.invoicePdf || null
+    invoicePdf: o.invoicePdf || null,
+    downloads: downloadsFor(o)
   };
 }
 
@@ -406,9 +442,15 @@ const server = http.createServer(function (req, res) {
 
   // Browsers send no custom headers on a cross-site form post, so requiring
   // JSON here blocks the simple-request CSRF shape. SameSite does the rest.
+  // An asset upload is raw file bytes, so it cannot claim application/json.
+  // It is still CSRF-safe without that check: a cross-site form can only
+  // issue GET or POST, and a cross-site fetch with PUT is preflighted. The
+  // SameSite=Strict session cookie covers the rest.
+  const isUpload = req.method === 'PUT' && /^\/api\/items\/[A-Za-z0-9_-]+\/assets$/.test(pathname);
+
   const needsJSON = ['POST', 'PUT', 'DELETE'].indexOf(req.method) >= 0;
   const ct = (req.headers['content-type'] || '').split(';')[0].trim();
-  if (needsJSON && !isWebhook && req.method !== 'DELETE' && ct !== 'application/json') {
+  if (needsJSON && !isWebhook && !isUpload && req.method !== 'DELETE' && ct !== 'application/json') {
     return send(res, 415, { error: 'Content-Type must be application/json.' });
   }
 
@@ -476,6 +518,55 @@ const server = http.createServer(function (req, res) {
           error: status >= 500 ? 'Could not load that receipt right now.' : err.message
         });
       }
+    }
+
+    // ---- the actual goods. Same credential as the receipt: the Checkout
+    // Session id, unguessable and issued only to whoever paid. Two things are
+    // checked before a byte is sent — that the session was genuinely paid
+    // (Stripe is asked, if we have not already recorded it), and that the
+    // requested file belongs to an item that was actually on *that* order.
+    // Without the second check, the cheapest book would unlock every file in
+    // the catalogue.
+    if (pathname === '/api/download' && req.method === 'GET') {
+      if (receiptBlocked(ip)) {
+        return send(res, 429, { error: 'Too many requests. Try again shortly.' });
+      }
+      noteLookup(ip);
+
+      const assetId = parsed.searchParams.get('asset') || '';
+      if (!/^ast-[0-9a-f]{12}$/.test(assetId)) {
+        return send(res, 400, { error: 'That is not a valid download reference.' });
+      }
+
+      let order;
+      try {
+        order = await checkout.receiptFor(parsed.searchParams.get('session_id'));
+      } catch (err) {
+        const status = err.statusCode || 502;
+        if (status === 404) return send(res, 404, { error: 'No order for that reference.' });
+        if (status >= 500) console.error('  [stripe] download lookup failed: ' + err.message);
+        return send(res, status, {
+          error: status >= 500 ? 'Could not verify that order right now.' : err.message
+        });
+      }
+      if (!order) return send(res, 404, { error: 'No order for that reference.' });
+      if (order.paymentStatus === 'unpaid') {
+        return send(res, 409, { error: 'That order has not been paid.' });
+      }
+
+      // The join that enforces entitlement: only assets on this order's items.
+      const entitled = downloadsFor(order).find(function (d) { return d.assetId === assetId; });
+      if (!entitled) return send(res, 404, { error: 'That download is not part of this order.' });
+
+      const item = loadCatalogue().items.find(function (i) { return i.code === entitled.code; });
+      const asset = item && (item.assets || []).find(function (a) { return a.id === assetId; });
+      if (!asset) return send(res, 404, { error: 'That download is no longer available.' });
+
+      console.log('  [download] ' + (order.receiptNo || order.sessionId) + ' -> ' + asset.filename);
+      if (!files.serve(req, res, asset)) {
+        return send(res, 404, { error: 'That download is no longer available.' });
+      }
+      return;
     }
 
     // ---- reconcile with Stripe (admin only)
@@ -550,6 +641,61 @@ const server = http.createServer(function (req, res) {
       return send(res, 201, { item });
     }
 
+    // ---- upload a downloadable file onto an item (admin)
+    //      PUT /api/items/:id/assets?filename=book.epub&label=Ebook
+    //      body = the raw file bytes. Raw rather than multipart on purpose:
+    //      parsing multipart by hand is a lot of fragile code for an
+    //      admin-only form that only ever sends one file at a time.
+    const upload = pathname.match(/^\/api\/items\/([A-Za-z0-9_-]{1,64})\/assets$/);
+    if (upload && req.method === 'PUT') {
+      const data = loadCatalogue();
+      const idx = data.items.findIndex(function (i) { return i.id === upload[1]; });
+      if (idx < 0) return send(res, 404, { error: 'No item with that id.' });
+
+      const filename = str(parsed.searchParams.get('filename'), 160);
+      if (!filename) return send(res, 400, { error: 'A filename is required.' });
+      const ext = files.extensionOf(filename);
+      if (!ext) {
+        return send(res, 415, {
+          error: 'That file type is not supported. Allowed: ' + files.allowedExtensions().join(', ')
+        });
+      }
+      const label = str(parsed.searchParams.get('label'), 80) || filename;
+
+      let received;
+      try {
+        received = await files.receive(req, ext);
+      } catch (err) {
+        return send(res, err.statusCode || 500, { error: err.message || 'Upload failed.' });
+      }
+
+      const asset = files.describe(received.stored, received.bytes, filename, label);
+      const item = data.items[idx];
+      if (!Array.isArray(item.assets)) item.assets = [];
+      item.assets.push(asset);
+      writeJSON(CATALOGUE, data);
+      return send(res, 201, { asset: asset });
+    }
+
+    // ---- remove a downloadable file (admin)
+    const unasset = pathname.match(/^\/api\/items\/([A-Za-z0-9_-]{1,64})\/assets\/(ast-[0-9a-f]{12})$/);
+    if (unasset && req.method === 'DELETE') {
+      const data = loadCatalogue();
+      const item = data.items.find(function (i) { return i.id === unasset[1]; });
+      if (!item || !Array.isArray(item.assets)) return send(res, 404, { error: 'No such download.' });
+      const at = item.assets.findIndex(function (a) { return a.id === unasset[2]; });
+      if (at < 0) return send(res, 404, { error: 'No such download.' });
+
+      const [removed] = item.assets.splice(at, 1);
+      // Catalogue first, then the bytes. If this crashed between the two, a
+      // stray file on disk is harmless; a catalogue entry pointing at nothing
+      // would show a customer a download that 404s.
+      writeJSON(CATALOGUE, data);
+      try { files.remove(removed); }
+      catch (err) { console.error('  [files] could not delete ' + removed.stored + ': ' + err.message); }
+      return send(res, 200, { removed: removed });
+    }
+
     const match = pathname.match(/^\/api\/items\/([A-Za-z0-9_-]{1,64})$/);
     if (match) {
       const id = match[1];
@@ -563,7 +709,7 @@ const server = http.createServer(function (req, res) {
         if (error) return send(res, 400, { error });
         // cleanItem rebuilds the record from scratch, so Stripe references
         // that the admin form does not carry have to be preserved here.
-        ['paymentLink', 'stripeProduct', 'stripePrice'].forEach(function (k) {
+        ['paymentLink', 'stripeProduct', 'stripePrice', 'assets'].forEach(function (k) {
           if (data.items[idx][k]) item[k] = data.items[idx][k];
         });
         const clash = data.items.some(function (i, n) { return n !== idx && i.code === item.code; });

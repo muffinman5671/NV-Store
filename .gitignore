@@ -10,6 +10,12 @@ server/data/orders.json
 # Atomic-write leftovers from the catalogue store
 server/data/*.tmp
 
+# Downloadable product files — the ebooks and audio customers pay for.
+# This repo is public: committing these would publish the paid goods for
+# free. They are runtime data, uploaded through the admin panel, and live
+# on the deployment volume.
+server/data/files/
+
 node_modules/
 *.log
 .DS_Store

@@ -78,6 +78,21 @@ input:focus,textarea:focus,select:focus{outline:2px solid var(--ember);outline-o
   font-size:1.15rem;font-variant-numeric:tabular-nums}
 .order .amt a{color:var(--ember);font-size:.8rem;text-decoration:underline;
   text-underline-offset:2px}
+
+#assets-box{margin-top:1.8rem;padding-top:1.5rem;border-top:1px solid var(--line)}
+.assets-h{font-family:"Bodoni Moda",Georgia,serif;font-weight:500;font-size:1.25rem;
+  margin:0 0 .3rem}
+.asset{display:flex;align-items:center;justify-content:space-between;gap:1rem;
+  flex-wrap:wrap;padding:.7rem 0;border-bottom:1px solid var(--line-2)}
+.asset .a-name{font-size:.95rem}
+.asset .a-meta{display:block;margin-top:.15rem;color:var(--fg-3);
+  font-family:"JetBrains Mono",monospace;font-size:.6875rem;letter-spacing:.1em;
+  text-transform:uppercase}
+.asset button{padding:.35rem .8rem;font-size:.8rem}
+.assets-add{display:grid;grid-template-columns:1fr 1fr auto;gap:1rem;
+  align-items:end;margin-top:1.2rem}
+@media (max-width:640px){.assets-add{grid-template-columns:1fr}}
+.assets-add input[type=file]{padding:.45rem;font-size:.85rem}
 .section{margin-bottom:3rem}
 .bar{display:flex;justify-content:space-between;align-items:baseline;gap:1rem;margin-bottom:.5rem}
 .hint{color:var(--fg-3);font-size:.85rem;margin:.4rem 0 0}
@@ -162,6 +177,28 @@ input:focus,textarea:focus,select:focus{outline:2px solid var(--ember);outline-o
         <button class="primary" type="submit" id="save-btn">Add item</button>
         <p class="msg" id="form-msg" hidden></p>
       </form>
+
+      <!-- Only meaningful once the item exists, since a file has to attach to
+           an id. Hidden until you are editing something. -->
+      <div id="assets-box" hidden>
+        <h3 class="assets-h">Downloads</h3>
+        <p class="hint" style="margin-bottom:1rem">Files here are handed to the
+          customer the moment their payment clears, on their receipt page.
+          Replacing a file updates it for everyone who already bought it.</p>
+        <div id="assets-list"></div>
+        <div class="assets-add">
+          <label style="margin:0">
+            <span>Add a file</span>
+            <input type="file" id="asset-file">
+          </label>
+          <label style="margin:0">
+            <span>Label shown to the buyer</span>
+            <input id="asset-label" maxlength="80" placeholder="Ebook (EPUB)">
+          </label>
+          <button type="button" id="asset-upload">Upload</button>
+        </div>
+        <p class="msg" id="assets-msg" hidden></p>
+      </div>
     </div>
   </div>
 
@@ -425,8 +462,110 @@ input:focus,textarea:focus,select:focus{outline:2px solid var(--ember);outline-o
     $("save-btn").textContent = "Save changes";
     $("cancel-edit").hidden = false;
     msg($("form-msg"), "");
+    drawAssets(it);
+    $("assets-box").hidden = false;
     $("form-title").scrollIntoView({ behavior: "smooth", block: "start" });
   }
+
+  /* ---------- downloadable files ---------- */
+
+  function fileSize(bytes) {
+    if (!bytes && bytes !== 0) return "";
+    if (bytes < 1024) return bytes + " B";
+    var mb = bytes / (1024 * 1024);
+    if (mb < 1) return Math.round(bytes / 1024) + " KB";
+    return (mb < 10 ? mb.toFixed(1) : Math.round(mb)) + " MB";
+  }
+
+  function drawAssets(it) {
+    var host = $("assets-list");
+    host.textContent = "";
+    var assets = Array.isArray(it.assets) ? it.assets : [];
+    if (!assets.length) {
+      var p = document.createElement("p");
+      p.className = "empty";
+      p.style.padding = "0.5rem 0";
+      p.textContent = it.kind === "book"
+        ? "No files yet — buyers of this book receive nothing to download."
+        : "No files yet.";
+      host.appendChild(p);
+      return;
+    }
+    assets.forEach(function (a) {
+      var row = document.createElement("div");
+      row.className = "asset";
+
+      var left = document.createElement("div");
+      var name = document.createElement("span");
+      name.className = "a-name";
+      name.textContent = a.label;
+      left.appendChild(name);
+      var meta = document.createElement("span");
+      meta.className = "a-meta";
+      meta.textContent = [a.filename, fileSize(a.bytes)].filter(Boolean).join(" · ");
+      left.appendChild(meta);
+      row.appendChild(left);
+
+      var del = document.createElement("button");
+      del.type = "button";
+      del.className = "danger";
+      del.textContent = "Remove";
+      del.addEventListener("click", function () {
+        if (!confirm("Remove " + a.label + "? Buyers will stop seeing it on their receipt.")) return;
+        del.disabled = true;
+        api("/api/items/" + it.id + "/assets/" + a.id, { method: "DELETE" })
+          .then(function () { return load(); })
+          .then(function () {
+            var fresh = items.find(function (x) { return x.id === it.id; });
+            if (fresh) drawAssets(fresh);
+            msg($("assets-msg"), "Removed.", "ok");
+          })
+          .catch(function (err) { del.disabled = false; msg($("assets-msg"), err.message, "err"); });
+      });
+      row.appendChild(del);
+
+      host.appendChild(row);
+    });
+  }
+
+  $("asset-upload").addEventListener("click", function () {
+    var input = $("asset-file");
+    var file = input.files && input.files[0];
+    if (!editing) return msg($("assets-msg"), "Open an item for editing first.", "err");
+    if (!file) return msg($("assets-msg"), "Choose a file first.", "err");
+
+    var btn = this;
+    btn.disabled = true;
+    msg($("assets-msg"), "Uploading " + file.name + "…", "");
+
+    // Raw bytes, not multipart — the server takes the filename and label from
+    // the query string so it never has to parse a form body.
+    var qs = "?filename=" + encodeURIComponent(file.name) +
+             "&label=" + encodeURIComponent($("asset-label").value.trim() || file.name);
+    fetch("/api/items/" + editing + "/assets" + qs, {
+      method: "PUT",
+      credentials: "same-origin",
+      body: file
+    })
+      .then(function (r) {
+        return r.json().catch(function () { return {}; }).then(function (d) {
+          if (!r.ok) throw new Error(d.error || ("Upload failed (" + r.status + ")"));
+          return d;
+        });
+      })
+      .then(function () {
+        input.value = "";
+        $("asset-label").value = "";
+        return load();
+      })
+      .then(function () {
+        var fresh = items.find(function (x) { return x.id === editing; });
+        if (fresh) drawAssets(fresh);
+        msg($("assets-msg"), "Uploaded. Buyers can download it immediately.", "ok");
+      })
+      .catch(function (err) { msg($("assets-msg"), err.message, "err"); })
+      .then(function () { btn.disabled = false; });
+  });
 
   function resetForm() {
     editing = null;
@@ -436,6 +575,8 @@ input:focus,textarea:focus,select:focus{outline:2px solid var(--ember);outline-o
     $("form-title").textContent = "Add an item";
     $("save-btn").textContent = "Add item";
     $("cancel-edit").hidden = true;
+    $("assets-box").hidden = true;
+    msg($("assets-msg"), "");
   }
   $("cancel-edit").addEventListener("click", function () { resetForm(); msg($("form-msg"), ""); });
 
