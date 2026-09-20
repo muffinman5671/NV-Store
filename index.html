@@ -716,7 +716,7 @@ footer{border-top:1px solid var(--line-2);padding:3.5rem 0 2.5rem;color:var(--fg
     <div class="eyebrow mono rv"><span>01 &mdash; The library</span></div>
     <div class="sec-head">
       <h2 class="display rv">Objects made to be kept.</h2>
-      <p class="rv">Every NV title ships as ebook, audio, and a thread-sewn print edition. We publish four books a year. Never more.</p>
+      <p class="rv">Every NV title comes as ebook and audio, yours the moment you buy it. We publish four books a year. Never more.</p>
     </div>
 
     <div class="books">
@@ -827,7 +827,7 @@ footer{border-top:1px solid var(--line-2);padding:3.5rem 0 2.5rem;color:var(--fg
 <section class="sec close" id="start">
   <div class="wrap">
     <h2 class="display rv">Begin with one page.</h2>
-    <p class="rv">The first title is open in under a minute &mdash; on your phone, your reader, or in print by Friday.</p>
+    <p class="rv">The first title is open in under a minute &mdash; on your phone, your reader, or in your ears.</p>
     <div class="row-cta rv">
       <a class="btn btn-fill" href="#library">Browse the library</a>
       <a class="btn" href="#services">See the services</a>
@@ -848,7 +848,6 @@ footer{border-top:1px solid var(--line-2);padding:3.5rem 0 2.5rem;color:var(--fg
         <ul>
           <li><a href="#library">All titles</a></li>
           <li><a href="#services">Services</a></li>
-          <li><button type="button" class="linkish" data-info="print">Print editions</button></li>
           <li><button type="button" class="linkish" data-info="audio">Audio</button></li>
         </ul>
       </div>
@@ -858,13 +857,12 @@ footer{border-top:1px solid var(--line-2);padding:3.5rem 0 2.5rem;color:var(--fg
           <li><a href="#founder">About NV</a></li>
           <li><button type="button" class="linkish" data-info="submissions">Submissions</button></li>
           <li><button type="button" class="linkish" data-info="press">Press</button></li>
-          <li><button type="button" class="linkish" data-info="stockists">Stockists</button></li>
         </ul>
       </div>
       <div>
         <h4 class="mono">Support</h4>
         <ul>
-          <li><button type="button" class="linkish" data-info="shipping">Shipping</button></li>
+          <li><button type="button" class="linkish" data-info="delivery">Delivery</button></li>
           <li><button type="button" class="linkish" data-info="contact">Contact</button></li>
           <li><button type="button" class="linkish" data-info="terms">Terms &amp; privacy</button></li>
         </ul>
@@ -1470,8 +1468,8 @@ footer{border-top:1px solid var(--line-2);padding:3.5rem 0 2.5rem;color:var(--fg
         setText("sheet-cm", d.cat + " · " + d.pages + "pp");
         setText("spec1l", "Pages");    setText("spec1v", d.pages);
         setText("spec2l", "Category"); setText("spec2v", d.cat);
-        setText("spec3l", "Formats");  setText("spec3v", "Ebook · Audio · Print");
-        setText("sheet-note", "Thread-sewn print edition · ships in two days");
+        setText("spec3l", "Formats");  setText("spec3v", "Ebook · Audio");
+        setText("sheet-note", "Ebook and audio · yours the moment you buy");
         sheetRead.hidden = !SAMPLES[d.code];
         setText("sheet-sub", d.sub);
       }
@@ -1634,14 +1632,9 @@ footer{border-top:1px solid var(--line-2);padding:3.5rem 0 2.5rem;color:var(--fg
     var iOpener = null;
 
     var COPY = {
-      print: ["Print editions", [
-        "Every NV title is printed in a thread-sewn edition on uncoated stock, with a cloth spine and foil-stamped boards. They are made to be opened flat and read repeatedly.",
-        "Print runs are small and numbered. When an edition sells out we reprint once a year rather than continuously, so a title is occasionally listed as awaiting reprint.",
-        "Print copies include the ebook and audio at no extra cost."
-      ]],
       audio: ["Audio", [
         "Every title is recorded in full, read by its author, in the same room the courses are filmed in. No abridgements.",
-        "Audio is included with every ebook and print purchase. Files are supplied as DRM-free downloads, so they play in any podcast app or audio player you already use."
+        "Audio is included with every title at no extra cost. Files are supplied as DRM-free downloads, so they play in any podcast app or audio player you already use."
       ]],
       submissions: ["Submissions", [
         "We read proposals twice a year, in spring and autumn. We publish four books annually, so the answer is usually no — that is a reflection of the schedule, not the work.",
@@ -1650,16 +1643,12 @@ footer{border-top:1px solid var(--line-2);padding:3.5rem 0 2.5rem;color:var(--fg
       ]],
       press: ["Press", [
         "For review copies, interview requests, cover art, and author photographs, get in touch and we will send a press kit for the relevant title.",
-        "Review copies are available as ebook or audio immediately, and in print roughly six weeks before publication."
+        "Review copies are available as ebook or audio immediately."
       ]],
-      stockists: ["Stockists", [
-        "NV titles are sold directly here and through a small number of independent bookshops who hand-sell them.",
-        "If you run a shop and would like to stock NV, write to us for wholesale terms. There is no minimum order for a first account."
-      ]],
-      shipping: ["Shipping", [
-        "Print orders are dispatched within two working days. Ebooks and audio are available the moment an order is placed, so there is nothing to wait for on a digital purchase.",
-        "Everything ships tracked. Delivery is typically two to four days domestically and seven to fourteen days internationally, customs permitting.",
-        "If a print copy arrives damaged, tell us within thirty days and we will replace it without needing the damaged copy returned."
+      delivery: ["Delivery", [
+        "Everything NV sells is digital. There is nothing to post and nothing to wait for: the moment your payment clears, your ebook and audio files appear on your receipt page, ready to download.",
+        "That receipt page stays put. Bookmark it and you can come back for the files any time, on any device, as often as you like. Files are DRM-free, so they open in whatever reader or player you already use.",
+        "If a download will not open, or you have lost your receipt link, write to us with your receipt number and we will sort it out."
       ]],
       contact: ["Contact", [
         "For orders and delivery questions, rights and permissions, or anything about a title, write to hello@example.com and a person will reply — usually within one working day.",
@@ -1667,8 +1656,8 @@ footer{border-top:1px solid var(--line-2);padding:3.5rem 0 2.5rem;color:var(--fg
       ]],
       terms: ["Terms & privacy", [
         "This is not a legal agreement, and it is not yet a privacy policy. It is an accurate description of what this site actually does with your information, written so that a solicitor can turn it into the real terms of sale and privacy policy NV still needs before trading.",
-        "Payment is handled entirely by Stripe. You are sent to Stripe's own checkout to pay, and your card details are entered there — they never reach NV's servers and NV never sees them. Stripe collects your email address, your name, and a billing address. If your order contains a print book it also collects a delivery address.",
-        "What NV keeps for each order: an order reference, a receipt number, the date, the amount and currency, whether it was paid, your email address and name, the titles and codes you bought with their quantities and the prices charged at the time, and a delivery address where one was collected. That record is what produces your receipt.",
+        "Payment is handled entirely by Stripe. You are sent to Stripe's own checkout to pay, and your card details are entered there — they never reach NV's servers and NV never sees them. Stripe collects your email address, your name, and a billing address. No delivery address is asked for, because nothing NV sells is posted.",
+        "What NV keeps for each order: an order reference, a receipt number, the date, the amount and currency, whether it was paid, your email address and name, and the titles and codes you bought with their quantities and the prices charged at the time. That record is what produces your receipt and unlocks your downloads.",
         "Two other companies see something. Stripe receives everything above, as the payment processor. Google serves the fonts this page uses, which means Google receives your IP address whenever you load the site, whether or not you buy anything.",
         "There is no analytics, no tracking, no advertising, and no third-party scripts beyond those fonts. The only cookie this site sets is a sign-in cookie for the shop's own administrator, and it is never set for customers.",
         "Order records are currently kept indefinitely; nothing deletes them automatically. A retention period is one of the decisions the real policy has to make. To ask what is held about you or to have it deleted, write to the address on the Contact panel — bearing in mind Stripe keeps its own copy under its own policy, and that records tied to a payment may have to be retained for tax or accounting reasons.",

@@ -69,9 +69,13 @@ function isRecurring(item) {
 }
 
 // Books ship a physical print edition; services do not.
-function needsShipping(items) {
-  return items.some(function (i) { return i.kind === 'book'; });
-}
+// Nothing NV sells is posted. Books are ebook and audio, delivered on the
+// receipt page the moment payment clears; services are engagements. Asking
+// for a delivery address would be friction at checkout and personal data
+// collected for no purpose, which is the opposite of what the privacy panel
+// promises. Reading shipping off historic sessions is left intact so orders
+// taken while print was planned still render their address on the receipt.
+const COLLECTS_SHIPPING = false;
 
 /**
  * Turn a client cart of {code, qty} into Stripe line items, pricing every
@@ -160,7 +164,7 @@ async function createSession(cart, origin) {
     integration_identifier: INTEGRATION_ID
   };
 
-  if (needsShipping(built.items)) {
+  if (COLLECTS_SHIPPING) {
     params.shipping_address_collection = { allowed_countries: ['US', 'CA', 'GB', 'IE', 'AU', 'NZ'] };
   }
 
