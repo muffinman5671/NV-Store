@@ -137,7 +137,7 @@ account owner's address.
 - Book titles are "Example 1/2/3" with invented subtitles, page counts, prices
 - Service names, scopes, timelines and prices are drafts from the founder bio
 - Three testimonials use invented names
-- The "Contact" panel uses `hello@example.com`
+- ~~The "Contact" panel uses `hello@example.com`~~ — now `admin@nv-store.store` (2026-09-20)
 - "Terms & privacy" is explicitly placeholder — it needs real terms and a real
   privacy policy, not generated text
 
