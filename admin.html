@@ -80,6 +80,8 @@ input:focus,textarea:focus,select:focus{outline:2px solid var(--ember);outline-o
   text-underline-offset:2px}
 
 #assets-box{margin-top:1.8rem;padding-top:1.5rem;border-top:1px solid var(--line)}
+.assets-pending{margin:0;padding:1rem 1.1rem;border-radius:10px;color:var(--fg-2);
+  font-size:.9rem;background:var(--bg);border:1px dashed var(--line)}
 .assets-h{font-family:"Bodoni Moda",Georgia,serif;font-weight:500;font-size:1.25rem;
   margin:0 0 .3rem}
 .asset{display:flex;align-items:center;justify-content:space-between;gap:1rem;
@@ -180,11 +182,22 @@ input:focus,textarea:focus,select:focus{outline:2px solid var(--ember);outline-o
 
       <!-- Only meaningful once the item exists, since a file has to attach to
            an id. Hidden until you are editing something. -->
-      <div id="assets-box" hidden>
+      <div id="assets-box">
         <h3 class="assets-h">Downloads</h3>
         <p class="hint" style="margin-bottom:1rem">Files here are handed to the
           customer the moment their payment clears, on their receipt page.
           Replacing a file updates it for everyone who already bought it.</p>
+
+        <!-- Shown while adding. A file has to attach to an item that already
+             exists, so the upload box cannot do anything useful yet — say so
+             rather than leaving an empty space where it will later appear. -->
+        <p class="assets-pending" id="assets-pending">
+          Save this item first. Files attach to an item that already exists —
+          once it is saved, open it from the list below and the upload box
+          appears here.
+        </p>
+
+        <div id="assets-live" hidden>
         <div id="assets-list"></div>
         <div class="assets-add">
           <label style="margin:0">
@@ -198,6 +211,7 @@ input:focus,textarea:focus,select:focus{outline:2px solid var(--ember);outline-o
           <button type="button" id="asset-upload">Upload</button>
         </div>
         <p class="msg" id="assets-msg" hidden></p>
+        </div>
       </div>
     </div>
   </div>
@@ -463,7 +477,8 @@ input:focus,textarea:focus,select:focus{outline:2px solid var(--ember);outline-o
     $("cancel-edit").hidden = false;
     msg($("form-msg"), "");
     drawAssets(it);
-    $("assets-box").hidden = false;
+    $("assets-pending").hidden = true;
+    $("assets-live").hidden = false;
     $("form-title").scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
@@ -575,7 +590,8 @@ input:focus,textarea:focus,select:focus{outline:2px solid var(--ember);outline-o
     $("form-title").textContent = "Add an item";
     $("save-btn").textContent = "Add item";
     $("cancel-edit").hidden = true;
-    $("assets-box").hidden = true;
+    $("assets-pending").hidden = false;
+    $("assets-live").hidden = true;
     msg($("assets-msg"), "");
   }
   $("cancel-edit").addEventListener("click", function () { resetForm(); msg($("form-msg"), ""); });
